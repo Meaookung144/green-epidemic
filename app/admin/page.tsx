@@ -35,10 +35,36 @@ interface User {
   };
 }
 
+interface AIAnalysis {
+  id: string;
+  title: string;
+  summary: string;
+  analysis: string;
+  recommendations: string;
+  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  confidence: number;
+  weatherDataCount: number;
+  reportsCount: number;
+  generatedBy: string;
+  createdAt: string;
+}
+
+interface AIAnalysisHistory {
+  id: string;
+  title: string;
+  summary: string;
+  severity: string;
+  confidence: number;
+  generatedBy: string;
+  weatherDataCount: number;
+  reportsCount: number;
+  createdAt: string;
+}
+
 export default function AdminDashboard() {
   const { data: session } = useSession();
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<'reports' | 'users' | 'stats'>('reports');
+  const [activeTab, setActiveTab] = useState<'reports' | 'users' | 'stats' | 'ai-analysis'>('reports');
   const [reports, setReports] = useState<Report[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,6 +75,9 @@ export default function AdminDashboard() {
     approvedReports: 0,
     rejectedReports: 0
   });
+  const [analysisHistory, setAnalysisHistory] = useState<AIAnalysisHistory[]>([]);
+  const [selectedAnalysis, setSelectedAnalysis] = useState<AIAnalysis | null>(null);
+  const [generatingAnalysis, setGeneratingAnalysis] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -69,6 +98,10 @@ export default function AdminDashboard() {
         const res = await fetch('/api/admin/stats');
         const data = await res.json();
         setStats(data);
+      } else if (activeTab === 'ai-analysis') {
+        const res = await fetch('/api/admin/ai-analysis');
+        const data = await res.json();
+        setAnalysisHistory(data);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -129,6 +162,66 @@ export default function AdminDashboard() {
     }
   };
 
+  const getSeverityColor = (severity: string) => {
+    switch (severity) {
+      case 'LOW': return 'bg-green-100 text-green-800';
+      case 'MEDIUM': return 'bg-yellow-100 text-yellow-800';
+      case 'HIGH': return 'bg-orange-100 text-orange-800';
+      case 'CRITICAL': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const handleGenerateAnalysis = async (force: boolean = false) => {
+    setGeneratingAnalysis(true);
+    try {
+      const res = await fetch('/api/admin/ai-analysis', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          hoursBack: 24,
+          force 
+        }),
+      });
+
+      const data = await res.json();
+      
+      if (res.ok) {
+        if (data.generated) {
+          toast.success(t('toast.ai_analysis_generated'));
+        } else {
+          toast.success(t('toast.ai_analysis_recent'));
+        }
+        setSelectedAnalysis(data.analysis);
+        fetchData(); // Refresh the history
+      } else {
+        toast.error(data.error || t('toast.ai_analysis_failed'));
+      }
+    } catch (error) {
+      console.error('Error generating analysis:', error);
+      toast.error(t('toast.ai_analysis_error'));
+    } finally {
+      setGeneratingAnalysis(false);
+    }
+  };
+
+  const handleViewAnalysis = async (analysisId: string) => {
+    try {
+      const res = await fetch(`/api/admin/ai-analysis?id=${analysisId}`);
+      if (res.ok) {
+        const analysis = await res.json();
+        setSelectedAnalysis(analysis);
+      } else {
+        toast.error(t('toast.ai_analysis_load_failed'));
+      }
+    } catch (error) {
+      console.error('Error loading analysis:', error);
+      toast.error(t('toast.ai_analysis_load_error'));
+    }
+  };
+
   const getSeverityColor = (severity: number) => {
     if (severity <= 2) return 'text-green-600';
     if (severity <= 3) return 'text-yellow-600';
@@ -146,6 +239,7 @@ export default function AdminDashboard() {
           <option value="reports">Reports</option>
           <option value="users">Users</option>
           <option value="stats">Statistics</option>
+          <option value="ai-analysis">AI Analysis</option>
         </select>
       </div>
       
@@ -181,6 +275,16 @@ export default function AdminDashboard() {
               }`}
             >
               Statistics
+            </button>
+            <button
+              onClick={() => setActiveTab('ai-analysis')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'ai-analysis'
+                  ? 'border-green-500 text-green-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              🤖 AI Analysis
             </button>
           </nav>
         </div>

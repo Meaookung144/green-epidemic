@@ -211,6 +211,12 @@ const resources = {
       "toast.user_updated": "User role updated successfully",
       "toast.user_update_failed": "Failed to update user",
       "toast.cannot_change_own_role": "Cannot change your own role",
+      "toast.ai_analysis_generated": "AI analysis generated successfully",
+      "toast.ai_analysis_recent": "Recent analysis available",
+      "toast.ai_analysis_failed": "Failed to generate AI analysis",
+      "toast.ai_analysis_error": "Error generating AI analysis",
+      "toast.ai_analysis_load_failed": "Failed to load analysis",
+      "toast.ai_analysis_load_error": "Error loading analysis",
       
       // Location Picker
       "location_picker.title": "Select Location",
@@ -430,6 +436,12 @@ const resources = {
       "toast.user_updated": "อัปเดตบทบาทผู้ใช้สำเร็จ",
       "toast.user_update_failed": "อัปเดตผู้ใช้ไม่สำเร็จ",
       "toast.cannot_change_own_role": "ไม่สามารถเปลี่ยนบทบาทของตัวเองได้",
+      "toast.ai_analysis_generated": "สร้างการวิเคราะห์ AI สำเร็จ",
+      "toast.ai_analysis_recent": "มีการวิเคราะห์ล่าสุดอยู่แล้ว",
+      "toast.ai_analysis_failed": "สร้างการวิเคราะห์ AI ไม่สำเร็จ",
+      "toast.ai_analysis_error": "เกิดข้อผิดพลาดในการสร้างการวิเคราะห์ AI",
+      "toast.ai_analysis_load_failed": "โหลดการวิเคราะห์ไม่สำเร็จ",
+      "toast.ai_analysis_load_error": "เกิดข้อผิดพลาดในการโหลดการวิเคราะห์",
       
       // Location Picker
       "location_picker.title": "เลือกตำแหน่งที่ตั้ง",
