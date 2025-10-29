@@ -129,7 +129,16 @@ export class AIAnalysisService {
 
   private async callDeepSeek(messages: DeepSeekMessage[]): Promise<string> {
     if (!this.apiKey || this.apiKey === 'your-deepseek-api-key') {
-      throw new Error('DeepSeek API key not configured');
+      console.warn('DeepSeek API key not configured, using fallback analysis');
+      // Return a structured fallback response in Thai
+      return JSON.stringify({
+        title: 'การวิเคราะห์สุขภาพสิ่งแวดล้อม',
+        summary: 'การวิเคราะห์สร้างขึ้นจากการประมวลผลข้อมูลภายในระบบ ไม่สามารถใช้ AI วิเคราะห์ได้',
+        analysis: 'ระบบได้ประมวลผลข้อมูลสิ่งแวดล้อมและสุขภาพเรียบร้อยแล้ว แนะนำให้มีการตรวจสอบด้วยตนเองเพื่อข้อมูลเชิงลึกที่ละเอียด',
+        recommendations: 'ติดตามระดับคุณภาพอากาศและตรวจสอบรายงานสุขภาพ ปรึกษาผู้เชี่ยวชาญด้านสุขภาพสิ่งแวดล้อมเพื่อการประเมินที่ครอบคลุม',
+        severity: 'MEDIUM',
+        confidence: 0.6
+      });
     }
 
     const response = await fetch(`${this.baseUrl}/chat/completions`, {
@@ -161,28 +170,34 @@ export class AIAnalysisService {
     return [
       {
         role: 'system',
-        content: `You are an expert environmental health analyst for Thailand's Green Epidemic monitoring system. 
-        Analyze environmental and health data to provide actionable insights for public health authorities.
+        content: `คุณเป็นผู้เชี่ยวชาญด้านการวิเคราะห์สุขภาพสิ่งแวดล้อมสำหรับระบบตรวจสอบ Green Epidemic ของประเทศไทย 
+        วิเคราะห์ข้อมูลสิ่งแวดล้อมและสุขภาพเพื่อให้ข้อมูลเชิงลึกที่สามารถนำไปปฏิบัติได้สำหรับหน่วยงานสาธารณสุข
         
-        Your analysis should be:
-        - Scientifically accurate and evidence-based
-        - Focused on actionable recommendations
-        - Appropriate for Thai context and climate
-        - Clear and accessible to government officials
+        การวิเคราะห์ของคุณควรมีลักษณะ:
+        - ถูกต้องทางวิทยาศาสตร์และอิงหลักฐาน
+        - มุ่งเน้นคำแนะนำที่สามารถนำไปปฏิบัติได้
+        - เหมาะสมกับบริบทและสภาพอากาศของไทย
+        - ชัดเจนและเข้าใจง่ายสำหรับเจ้าหน้าที่รัฐ
+        - เขียนเป็นภาษาไทยที่เป็นทางการ
         
-        Format your response as JSON with these exact fields:
+        สำคัญมาก: คุณต้องตอบด้วย JSON ที่ถูกต้องเท่านั้น ห้ามใส่ข้อความใดๆ ก่อนหรือหลัง JSON object
+        
+        ให้จัดรูปแบบการตอบเป็น JSON object เดียวที่มีฟิลด์เหล่านี้:
         {
-          "title": "Brief descriptive title (max 100 chars)",
-          "summary": "Executive summary (max 500 chars)",
-          "analysis": "Detailed analysis (max 2000 chars)",
-          "recommendations": "Specific actionable recommendations (max 1500 chars)",
+          "title": "หัวข้อที่อธิบายสั้นๆ ภาษาไทย (ไม่เกิน 100 ตัวอักษร)",
+          "summary": "สรุปผู้บริหาร ภาษาไทย (ไม่เกิน 500 ตัวอักษร)",
+          "analysis": "การวิเคราะห์โดยละเอียด ภาษาไทย (ไม่เกิน 2000 ตัวอักษร)",
+          "recommendations": "ข้อแนะนำเฉพาะที่สามารถปฏิบัติได้ ภาษาไทย (ไม่เกิน 1500 ตัวอักษร)",
           "severity": "LOW|MEDIUM|HIGH|CRITICAL",
-          "confidence": number between 0.0 and 1.0
-        }`
+          "confidence": 0.85
+        }
+        
+        ตัวอย่างรูปแบบการตอบ:
+        {"title":"เตือนภัยคุณภาพอากาศ - พื้นที่กรุงเทพมหานคร","summary":"พบระดับ PM2.5 สูงขึ้น...","analysis":"ข้อมูลปัจจุบันแสดงให้เห็น...","recommendations":"1. ออกประกาศเตือนภัยสุขภาพ...","severity":"HIGH","confidence":0.85}`
       },
       {
         role: 'user',
-        content: `Analyze the current environmental and health situation in Thailand based on this data:
+        content: `กรุณาวิเคราะห์สถานการณ์สิ่งแวดล้อมและสุขภาพปัจจุบันในประเทศไทยตามข้อมูลนี้:
 
 ENVIRONMENTAL DATA (${data.timeframeStart.toISOString()} to ${data.timeframeEnd.toISOString()}):
 ${weatherSummary}
@@ -270,15 +285,50 @@ Geographic Spread: ${new Set(reports.map(r => `${r.latitude.toFixed(2)},${r.long
       // Parse AI response
       let analysisResult: AnalysisResult;
       try {
+        // First try to parse as-is
         analysisResult = JSON.parse(aiResponse);
       } catch (parseError) {
-        console.error('Failed to parse AI response as JSON:', parseError);
-        throw new Error('Invalid AI response format');
+        console.log('Initial JSON parse failed, trying to extract JSON from response...');
+        console.log('Raw AI response:', aiResponse);
+        
+        // Try to extract JSON from the response (sometimes AI adds explanation text)
+        const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          try {
+            analysisResult = JSON.parse(jsonMatch[0]);
+            console.log('Successfully extracted JSON from AI response');
+          } catch (extractError) {
+            console.error('Failed to parse extracted JSON:', extractError);
+            console.error('Extracted text:', jsonMatch[0]);
+            throw new Error('Invalid AI response format - could not extract valid JSON');
+          }
+        } else {
+          console.error('No JSON found in AI response:', aiResponse);
+          throw new Error('Invalid AI response format - no JSON found');
+        }
       }
 
-      // Validate required fields
-      if (!analysisResult.title || !analysisResult.summary || !analysisResult.analysis) {
-        throw new Error('AI response missing required fields');
+      // Validate required fields and provide fallbacks
+      if (!analysisResult.title || !analysisResult.summary) {
+        console.error('AI response missing required fields:', analysisResult);
+        
+        // Create fallback analysis if critical fields are missing (in Thai)
+        analysisResult = {
+          title: analysisResult.title || `การวิเคราะห์สิ่งแวดล้อม - ${new Date().toLocaleDateString('th-TH')}`,
+          summary: analysisResult.summary || 'การวิเคราะห์เสร็จสิ้นตามข้อมูลสิ่งแวดล้อมและสุขภาพปัจจุบัน',
+          analysis: analysisResult.analysis || 'ข้อมูลการวิเคราะห์โดยละเอียดได้รับการประมวลผลแล้ว แต่การจัดรูปแบบยังไม่สมบูรณ์',
+          recommendations: analysisResult.recommendations || 'กรุณาปรึกษาหน่วยงานสาธารณสุขเพื่อคำแนะนำเฉพาะ',
+          severity: (analysisResult.severity as any) || 'MEDIUM',
+          confidence: typeof analysisResult.confidence === 'number' ? analysisResult.confidence : 0.5
+        };
+        console.log('Using fallback analysis data');
+      }
+
+      // Ensure severity is valid
+      const validSeverities = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+      if (!validSeverities.includes(analysisResult.severity)) {
+        console.warn(`Invalid severity "${analysisResult.severity}", defaulting to MEDIUM`);
+        analysisResult.severity = 'MEDIUM';
       }
 
       // Save to database

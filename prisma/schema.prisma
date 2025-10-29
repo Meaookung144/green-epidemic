@@ -10,6 +10,8 @@ datasource db {
 
 enum Role {
   USER
+  VOLUNTEER
+  DOCTOR
   ADMIN
 }
 
@@ -40,6 +42,11 @@ model User {
   googleId          String?             @unique
   lineId            String?             @unique
   
+  // Integration status
+  lineOfficialConnected Boolean         @default(false)
+  lineOfficialUserId    String?         @unique
+  googleSyncEnabled     Boolean         @default(false)
+  
   // Profile
   profileImage      String?
   homeLatitude      Float?
@@ -53,10 +60,16 @@ model User {
   // Relations
   reports           Report[]
   surveillancePoints SurveillancePoint[]
+  riskAssessments   RiskAssessment[]
   accounts          Account[]
   sessions          Session[]
   notifications     Notification[]
   notificationPreferences NotificationPreference[]
+  
+  // Telemedical relations
+  patientConsultations TelemedConsultation[] @relation("PatientConsultations")
+  doctorConsultations  TelemedConsultation[] @relation("DoctorConsultations")
+  aiHealthChats        AIHealthChat[]
 }
 
 model Account {
@@ -197,6 +210,7 @@ model NotificationPreference {
   
   // LINE specific
   lineNotifyToken   String?
+  lineChannelAccessToken String? // For LINE Official Account messaging
   
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
@@ -224,12 +238,15 @@ model WeatherData {
   // Source info
   source      String
   airQualitySource String? // Track which API provided air quality data (AQICN, Air4Thai, etc.)
+  stationName String? // Name of the air quality station
+  stationId   String? // Station identifier
   recordedAt  DateTime
   
   createdAt   DateTime @default(now())
   
   @@index([latitude, longitude])
   @@index([recordedAt])
+  @@index([stationId])
 }
 
 model AIAnalysis {
@@ -258,4 +275,138 @@ model AIAnalysis {
   @@index([createdAt])
   @@index([severity])
   @@index([generatedBy])
+}
+
+model RiskAssessment {
+  id              String   @id @default(cuid())
+  
+  // User information
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id])
+  
+  // Patient information
+  patientName     String
+  patientAge      Int
+  patientGender   String
+  patientPhone    String?
+  
+  // Primary symptoms
+  primarySymptoms String[] // Array of symptoms
+  severity        Int      // 1-5 scale
+  duration        String   // How long symptoms have lasted
+  
+  // Risk assessment results
+  riskLevel       String   // LOW, MEDIUM, HIGH, CRITICAL
+  priority        String   // ROUTINE, URGENT, EMERGENCY
+  
+  // Triage recommendation
+  recommendation  String   // SELF_CARE, TELEHEALTH, CLINIC_VISIT, EMERGENCY
+  notes           String?  // Additional notes
+  
+  // Telemedical consultation
+  doctorConsultation Boolean @default(false)
+  doctorNotes        String?
+  doctorRecommendation String?
+  consultationDate   DateTime?
+  
+  // Assessment metadata
+  assessedBy      String   // User ID of person conducting assessment
+  location        String?  // Location where assessment was conducted
+  latitude        Float?
+  longitude       Float?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  telemedConsultation TelemedConsultation?
+  
+  @@index([riskLevel])
+  @@index([priority])
+  @@index([createdAt])
+  @@index([assessedBy])
+}
+
+enum ConsultationStatus {
+  PENDING
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model TelemedConsultation {
+  id              String   @id @default(cuid())
+  
+  // Risk Assessment relation
+  riskAssessmentId String  @unique
+  riskAssessment   RiskAssessment @relation(fields: [riskAssessmentId], references: [id], onDelete: Cascade)
+  
+  // Patient and Doctor
+  patientId       String
+  patient         User     @relation("PatientConsultations", fields: [patientId], references: [id])
+  doctorId        String?
+  doctor          User?    @relation("DoctorConsultations", fields: [doctorId], references: [id])
+  
+  // Consultation details
+  status          ConsultationStatus @default(PENDING)
+  scheduledAt     DateTime?
+  startedAt       DateTime?
+  endedAt         DateTime?
+  duration        Int?     // Duration in minutes
+  
+  // Video call details
+  roomId          String?  // Video call room ID
+  callUrl         String?  // Video call URL
+  
+  // Consultation notes
+  chiefComplaint  String?  // Main reason for consultation
+  doctorNotes     String?
+  diagnosis       String?
+  prescription    String?
+  followUpNotes   String?
+  followUpDate    DateTime?
+  
+  // AI Chat history
+  aiChatHistory   Json?    // Stores AI chat conversation
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([status])
+  @@index([scheduledAt])
+}
+
+model AIHealthChat {
+  id              String   @id @default(cuid())
+  
+  // User information
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Chat session
+  sessionId       String   // To group related messages
+  messages        Json     // Array of chat messages
+  
+  // AI Analysis results
+  suggestedSymptoms String[] // AI suggested symptoms
+  riskLevel       String?   // AI assessed risk level
+  recommendation  String?   // AI recommendation
+  shouldConsultDoctor Boolean @default(false)
+  
+  // Additional information collection
+  needsMoreInfo   Boolean @default(false) // Whether AI needs more patient info
+  missingInfo     String[] // Array of missing information types
+  
+  // Metadata
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([userId, sessionId])
+  @@index([userId])
+  @@index([sessionId])
+  @@index([shouldConsultDoctor])
+  @@index([needsMoreInfo])
 }

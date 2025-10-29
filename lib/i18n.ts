@@ -149,6 +149,10 @@ const resources = {
       "weather.updated": "Updated",
       "weather.air_quality": "Air Quality",
       "weather.aqi": "AQI",
+      "weather.fetching": "Fetching weather data...",
+      "weather.error": "Weather error",
+      "weather.retry": "Retry",
+      "location.error": "Location error",
       
       // Report Types
       "symptoms.fever": "Fever",
@@ -226,6 +230,28 @@ const resources = {
       "location_picker.loading_address": "Loading address...",
       "location_picker.no_location_selected": "No location selected. Click on the map to select a location.",
       "location_picker.confirm_location": "Confirm Location",
+      
+      // Force Fetch
+      "force_fetch.button_title": "Force Fetch Air Quality Data",
+      "force_fetch.fetching": "Fetching latest air quality data...",
+      "force_fetch.success": "Air quality data updated successfully!",
+      "force_fetch.failed": "Failed to fetch air quality data",
+      "force_fetch.error": "Error fetching air quality data",
+      
+      // Integrations
+      "integration.title": "Connect Services",
+      "integration.line_official": "LINE Official Account",
+      "integration.google_sync": "Google Sync",
+      "integration.connect": "Connect",
+      "integration.disconnect": "Disconnect",
+      "integration.connected": "Connected",
+      "integration.not_connected": "Not Connected",
+      "integration.line_description": "Connect to receive environmental alerts via LINE messages",
+      "integration.google_description": "Sync your data with Google services",
+      "integration.connect_success": "Successfully connected!",
+      "integration.disconnect_success": "Successfully disconnected",
+      "integration.connect_failed": "Failed to connect",
+      "integration.disconnect_failed": "Failed to disconnect",
     }
   },
   th: {
@@ -374,6 +400,10 @@ const resources = {
       "weather.updated": "อัปเดต",
       "weather.air_quality": "คุณภาพอากาศ",
       "weather.aqi": "ดัชนีคุณภาพอากาศ",
+      "weather.fetching": "กำลังดึงข้อมูลสภาพอากาศ...",
+      "weather.error": "ข้อผิดพลาดข้อมูลสภาพอากาศ",
+      "weather.retry": "ลองใหม่",
+      "location.error": "ข้อผิดพลาดตำแหน่ง",
       
       // Report Types
       "symptoms.fever": "ไข้",
@@ -451,6 +481,28 @@ const resources = {
       "location_picker.loading_address": "กำลังโหลดที่อยู่...",
       "location_picker.no_location_selected": "ยังไม่ได้เลือกตำแหน่ง คลิกบนแผนที่เพื่อเลือกตำแหน่ง",
       "location_picker.confirm_location": "ยืนยันตำแหน่ง",
+      
+      // Force Fetch
+      "force_fetch.button_title": "ดึงข้อมูลคุณภาพอากาศล่าสุด",
+      "force_fetch.fetching": "กำลังดึงข้อมูลคุณภาพอากาศล่าสุด...",
+      "force_fetch.success": "อัปเดตข้อมูลคุณภาพอากาศสำเร็จ!",
+      "force_fetch.failed": "ดึงข้อมูลคุณภาพอากาศไม่สำเร็จ",
+      "force_fetch.error": "เกิดข้อผิดพลาดในการดึงข้อมูลคุณภาพอากาศ",
+      
+      // Integrations
+      "integration.title": "เชื่อมต่อบริการ",
+      "integration.line_official": "LINE Official Account",
+      "integration.google_sync": "Google Sync",
+      "integration.connect": "เชื่อมต่อ",
+      "integration.disconnect": "ตัดการเชื่อมต่อ",
+      "integration.connected": "เชื่อมต่อแล้ว",
+      "integration.not_connected": "ยังไม่ได้เชื่อมต่อ",
+      "integration.line_description": "เชื่อมต่อเพื่อรับการแจ้งเตือนสิ่งแวดล้อมผ่าน LINE",
+      "integration.google_description": "ซิงค์ข้อมูลของคุณกับบริการ Google",
+      "integration.connect_success": "เชื่อมต่อสำเร็จ!",
+      "integration.disconnect_success": "ตัดการเชื่อมต่อสำเร็จ",
+      "integration.connect_failed": "เชื่อมต่อไม่สำเร็จ",
+      "integration.disconnect_failed": "ตัดการเชื่อมต่อไม่สำเร็จ",
     }
   }
 };
@@ -459,7 +511,7 @@ i18n
   .use(initReactI18next)
   .init({
     resources,
-    lng: 'en', // default language
+    lng: 'th', // default language (Thai as requested)
     fallbackLng: 'en',
     interpolation: {
       escapeValue: false,

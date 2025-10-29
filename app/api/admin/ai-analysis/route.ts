@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { auth } from '@/auth';
 import { aiAnalysisService } from '@/lib/services/aiAnalysisService';
 
 // GET /api/admin/ai-analysis - Get analysis history
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     
     if (!session?.user || (session.user as any).role !== 'ADMIN') {
       return NextResponse.json(
@@ -47,7 +46,7 @@ export async function GET(request: NextRequest) {
 // POST /api/admin/ai-analysis - Generate new analysis
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     
     if (!session?.user || (session.user as any).role !== 'ADMIN') {
       return NextResponse.json(

@@ -21,6 +21,8 @@ export async function GET(request: NextRequest) {
         homeAddress: true,
         profileImage: true,
         role: true,
+        lineOfficialConnected: true,
+        googleSyncEnabled: true,
       },
     });
 

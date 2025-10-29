@@ -4,7 +4,12 @@ import { useState } from 'react';
 import { useSession } from "next-auth/react";
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import LocationPicker from './LocationPicker';
+import dynamic from 'next/dynamic';
+
+const LocationPicker = dynamic(() => import('./LocationPicker'), {
+  ssr: false,
+  loading: () => <div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>
+});
 
 interface ReportModalProps {
   isOpen: boolean;

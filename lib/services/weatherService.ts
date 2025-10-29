@@ -77,7 +77,7 @@ export class WeatherService {
     return distance;
   }
 
-  private async fetchAir4ThaiData(latitude: number, longitude: number) {
+  private async fetchAndSaveAllAir4ThaiData() {
     try {
       const response = await axios.get<Air4ThaiResponse>(
         'http://air4thai.com/forweb/getAQI_JSON.php',
@@ -88,11 +88,91 @@ export class WeatherService {
         return null;
       }
 
-      // Find the nearest station within 50km
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      let savedCount = 0;
+      let skippedCount = 0;
+
+      // Save all station data to database
+      for (const station of response.data.stations) {
+        const stationLat = parseFloat(station.lat);
+        const stationLng = parseFloat(station.long);
+        
+        if (isNaN(stationLat) || isNaN(stationLng) || !station.AQILast) continue;
+
+        // Check if we already have recent data for this station
+        const existingData = await prisma.weatherData.findFirst({
+          where: {
+            latitude: {
+              gte: stationLat - 0.001,
+              lte: stationLat + 0.001,
+            },
+            longitude: {
+              gte: stationLng - 0.001,
+              lte: stationLng + 0.001,
+            },
+            recordedAt: {
+              gte: oneHourAgo,
+            },
+            airQualitySource: 'Air4Thai'
+          }
+        });
+
+        if (existingData) {
+          skippedCount++;
+          continue; // Skip if we have recent data
+        }
+
+        const pm25Value = parseFloat(station.AQILast.PM25.value);
+        const pm10Value = parseFloat(station.AQILast.PM10.value);
+        const aqiValue = parseFloat(station.AQILast.AQI.aqi);
+
+        try {
+          await prisma.weatherData.create({
+            data: {
+              latitude: stationLat,
+              longitude: stationLng,
+              pm25: pm25Value >= 0 ? pm25Value : null,
+              pm10: pm10Value >= 0 ? pm10Value : null,
+              aqi: aqiValue >= 0 ? Math.round(aqiValue) : null,
+              temperature: null,
+              humidity: null,
+              windSpeed: null,
+              windDirection: null,
+              source: 'Air4Thai',
+              airQualitySource: 'Air4Thai',
+              stationName: station.nameEN,
+              stationId: station.stationID,
+              recordedAt: new Date(`${station.AQILast.date} ${station.AQILast.time}`),
+            }
+          });
+          savedCount++;
+        } catch (saveError) {
+          console.error(`Error saving Air4Thai data for station ${station.stationID}:`, saveError);
+        }
+      }
+
+      console.log(`Air4Thai bulk save complete: ${savedCount} saved, ${skippedCount} skipped (recent data exists)`);
+      return response.data.stations;
+    } catch (error) {
+      console.error('Error fetching Air4Thai data:', error);
+      return null;
+    }
+  }
+
+  private async fetchAir4ThaiData(latitude: number, longitude: number) {
+    try {
+      // First, fetch and save all Air4Thai data
+      const allStations = await this.fetchAndSaveAllAir4ThaiData();
+      
+      if (!allStations || allStations.length === 0) {
+        return null;
+      }
+
+      // Find the nearest station for the requested location
       let nearestStation: Air4ThaiStation | null = null;
       let minDistance = Infinity;
 
-      for (const station of response.data.stations) {
+      for (const station of allStations) {
         const stationLat = parseFloat(station.lat);
         const stationLng = parseFloat(station.long);
         
@@ -120,6 +200,7 @@ export class WeatherService {
         aqi: aqiValue >= 0 ? aqiValue : null,
         source: 'Air4Thai',
         stationName: nearestStation.nameEN,
+        stationId: nearestStation.stationID,
         distance: minDistance,
         lastUpdate: `${nearestStation.AQILast.date} ${nearestStation.AQILast.time}`
       };
@@ -220,6 +301,7 @@ export class WeatherService {
             pm10: air4thaiData.pm10,
             reliability: air4thaiData.distance <= 10 ? 0.9 : 0.7, // Higher reliability for closer stations
             stationName: air4thaiData.stationName,
+            stationId: air4thaiData.stationId,
             distance: air4thaiData.distance
           });
         }
@@ -244,6 +326,8 @@ export class WeatherService {
           weatherData.pm25 = bestSource.pm25;
           weatherData.pm10 = bestSource.pm10;
           weatherData.airQualitySource = bestSource.source;
+          weatherData.stationName = bestSource.stationName || null;
+          weatherData.stationId = bestSource.stationId || null;
           
           // Log the selected source for debugging
           console.log(`Selected air quality source: ${bestSource.source} for location ${latitude}, ${longitude}`);
@@ -275,6 +359,8 @@ export class WeatherService {
           windDirection: weatherData.windDirection,
           source: 'API',
           airQualitySource: weatherData.airQualitySource || null,
+          stationName: weatherData.stationName || null,
+          stationId: weatherData.stationId || null,
           recordedAt: new Date(),
         },
       });

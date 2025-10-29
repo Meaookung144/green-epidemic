@@ -6,6 +6,9 @@ import { useSession } from "next-auth/react";
 import { useTranslation } from 'react-i18next';
 import ReportModal from '@/components/ReportModal';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
+import ForceFetchButton from '@/components/ForceFetchButton';
+import { useGeolocation } from '@/hooks/useGeolocation';
+import { useAutoWeatherFetch } from '@/hooks/useAutoWeatherFetch';
 
 const MapComponent = dynamic(() => import('@/components/MapComponent'), {
   ssr: false,
@@ -20,33 +23,70 @@ export default function Home() {
     pm25: true,
     covid19: true,
     flu: true,
+    allEnvironmentalData: false,
   });
   const [showReportModal, setShowReportModal] = useState(false);
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
-  useEffect(() => {
-    // Get user location
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          });
-        },
-        (error) => {
-          console.error('Error getting location:', error);
-        }
-      );
-    }
-  }, []);
+  // Use geolocation hook for user location
+  const { 
+    latitude, 
+    longitude, 
+    error: locationError, 
+    loading: locationLoading 
+  } = useGeolocation({
+    enableHighAccuracy: true,
+    timeout: 10000,
+    autoFetch: true
+  });
+
+  // Auto-fetch weather data within 5km radius
+  const { 
+    weatherData, 
+    loading: weatherLoading, 
+    error: weatherError,
+    manualRefresh
+  } = useAutoWeatherFetch(latitude, longitude, {
+    radiusKm: 5,
+    autoFetch: true
+  });
+
+  const userLocation = latitude && longitude ? { lat: latitude, lng: longitude } : null;
 
   return (
     <div className="relative w-full h-screen">
       <MapComponent 
         activeLayers={activeLayers} 
         userLocation={userLocation ? [userLocation.lat, userLocation.lng] : undefined}
+        weatherData={weatherData}
       />
+      
+      {/* Weather loading indicator */}
+      {weatherLoading && (
+        <div className="absolute top-20 left-4 z-[1000] bg-white rounded-lg shadow-lg p-3 flex items-center gap-2">
+          <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
+          <span className="text-sm text-gray-700">{t('weather.fetching')}</span>
+        </div>
+      )}
+      
+      {/* Location error indicator */}
+      {locationError && (
+        <div className="absolute top-20 left-4 z-[1000] bg-red-50 border border-red-200 rounded-lg p-3">
+          <span className="text-sm text-red-700">{t('location.error')}: {locationError}</span>
+        </div>
+      )}
+      
+      {/* Weather error indicator */}
+      {weatherError && (
+        <div className="absolute top-32 left-4 z-[1000] bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+          <span className="text-sm text-yellow-700">{t('weather.error')}: {weatherError}</span>
+          <button 
+            onClick={manualRefresh}
+            className="ml-2 text-xs bg-yellow-600 text-white px-2 py-1 rounded hover:bg-yellow-700"
+          >
+            {t('weather.retry')}
+          </button>
+        </div>
+      )}
       
       {/* Desktop: Top-right controls */}
       <div className="hidden md:block absolute top-4 right-4 z-[1000] space-y-4">
@@ -91,6 +131,18 @@ export default function Home() {
               />
               <span className="text-sm">{t('map.flu')}</span>
             </label>
+            <div className="border-t border-gray-200 pt-2 mt-2">
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={activeLayers.allEnvironmentalData}
+                  onChange={(e) => setActiveLayers({...activeLayers, allEnvironmentalData: e.target.checked})}
+                  className="mr-2"
+                />
+                <span className="text-sm font-medium text-blue-600">🌍 All Environmental Data</span>
+              </label>
+              <p className="text-xs text-gray-500 mt-1 ml-6">Show all weather & PM2.5 monitoring stations</p>
+            </div>
           </div>
         </div>
       </div>
@@ -142,11 +194,23 @@ export default function Home() {
               <span className="text-sm">{t('map.flu')}</span>
             </label>
           </div>
+          <div className="border-t border-gray-200 pt-3 mt-3">
+            <label className="flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={activeLayers.allEnvironmentalData}
+                onChange={(e) => setActiveLayers({...activeLayers, allEnvironmentalData: e.target.checked})}
+                className="mr-2"
+              />
+              <span className="text-sm font-medium text-blue-600">🌍 All Environmental Data</span>
+            </label>
+            <p className="text-xs text-gray-500 mt-1">Show all weather & PM2.5 monitoring stations</p>
+          </div>
         </div>
       </div>
 
-      {/* Mobile: Top floating action button */}
-      <div className="md:hidden absolute top-4 left-4 z-[1000]">
+      {/* Mobile: Top floating action buttons */}
+      <div className="md:hidden absolute top-4 left-4 z-[1000] flex flex-col gap-2">
         <button 
           onClick={() => setShowReportModal(true)}
           className="bg-green-600 text-white p-3 rounded-full shadow-lg hover:bg-green-700 transition w-14 h-14 flex items-center justify-center"
@@ -156,6 +220,27 @@ export default function Home() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
         </button>
+        <a
+          href="/risk-assessment"
+          className="bg-red-600 text-white p-3 rounded-full shadow-lg hover:bg-red-700 transition w-14 h-14 flex items-center justify-center"
+          title="Risk Assessment"
+        >
+          <span className="text-xl">🏥</span>
+        </a>
+        <a
+          href="/ai-health-chat"
+          className="bg-purple-600 text-white p-3 rounded-full shadow-lg hover:bg-purple-700 transition w-14 h-14 flex items-center justify-center"
+          title="AI Health Chat"
+        >
+          <span className="text-xl">🤖</span>
+        </a>
+        <a
+          href="/telemedicine"
+          className="bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition w-14 h-14 flex items-center justify-center"
+          title="Telemedicine"
+        >
+          <span className="text-xl">📞</span>
+        </a>
       </div>
 
       {/* Mobile: User menu in top-right */}
@@ -207,6 +292,27 @@ export default function Home() {
             {t('map.report_illness')}
           </button>
           
+          <a
+            href="/risk-assessment"
+            className="bg-red-600 text-white px-4 py-2 rounded-lg shadow-lg hover:bg-red-700 transition text-center block"
+          >
+            🏥 Risk Assessment
+          </a>
+          
+          <a
+            href="/ai-health-chat"
+            className="bg-purple-600 text-white px-4 py-2 rounded-lg shadow-lg hover:bg-purple-700 transition text-center block"
+          >
+            🤖 AI Health Chat
+          </a>
+          
+          <a
+            href="/telemedicine"
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg hover:bg-blue-700 transition text-center block"
+          >
+            📞 Telemedicine
+          </a>
+          
           {session?.user && (session.user as any).role === 'ADMIN' && (
             <a
               href="/admin"
@@ -239,6 +345,16 @@ export default function Home() {
           )}
         </div>
       </div>
+
+      {/* Force Fetch Button - positioned to avoid conflicts */}
+      <ForceFetchButton 
+        onDataUpdated={() => {
+          // Trigger a manual refresh of weather data
+          if (manualRefresh) {
+            manualRefresh();
+          }
+        }}
+      />
 
       <ReportModal
         isOpen={showReportModal}
