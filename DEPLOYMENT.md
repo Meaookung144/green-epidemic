@@ -1,4 +1,4 @@
-# Green Epidemic - Vercel Deployment Guide
+# Green Epidemic - Netlify Deployment Guide
 
 ## Current Status: ✅ Ready for Production Deployment
 
@@ -36,12 +36,12 @@ AIR4THAI_API_KEY="..."
 NODE_ENV="production"
 ```
 
-#### Vercel Configuration:
-- Framework: Next.js 15
+#### Netlify Configuration:
+- Framework: Next.js 15  
 - Build Command: `npm run build`
-- Install Command: `npm install`
-- Output Directory: `.next`
+- Publish Directory: `.next`
 - Node.js Version: 18.x or 20.x
+- Environment Variables: Set in Netlify dashboard
 
 #### Database Setup:
 1. Ensure PostgreSQL database is accessible from Vercel
@@ -83,11 +83,29 @@ npm run start
 
 ### 📋 Post-Deployment Tasks
 
-1. **Database Migration**: Run Prisma migrations on production
-2. **API Keys**: Verify all external API integrations
-3. **Cron Jobs**: Set up weather data sync (configured in vercel.json)
-4. **Domain**: Configure custom domain if needed
-5. **Testing**: Verify all features work in production environment
+1. **OAuth Configuration**: Update Google & LINE OAuth settings
+   - Google Console: Add `https://green-epidemic.netlify.app` to authorized origins
+   - Add `https://green-epidemic.netlify.app/api/auth/callback/google` to redirect URIs
+   - LINE Console: Update callback URL to `https://green-epidemic.netlify.app/api/auth/callback/line`
+
+2. **Database Migration**: Run Prisma migrations on production
+3. **API Keys**: Verify all external API integrations  
+4. **Environment Variables**: Set all required variables in Netlify dashboard
+5. **Testing**: Verify authentication and all features work
+
+### 🔧 OAuth Setup Instructions
+
+**Google OAuth:**
+1. Go to [Google Cloud Console](https://console.cloud.google.com)
+2. Navigate to APIs & Services > Credentials
+3. Edit your OAuth 2.0 Client ID
+4. Add to Authorized JavaScript origins: `https://green-epidemic.netlify.app`
+5. Add to Authorized redirect URIs: `https://green-epidemic.netlify.app/api/auth/callback/google`
+
+**LINE Login:**
+1. Go to [LINE Developers Console](https://developers.line.biz)
+2. Select your channel
+3. Update Callback URL: `https://green-epidemic.netlify.app/api/auth/callback/line`
 
 ### 🐛 Monitoring and Maintenance
 
