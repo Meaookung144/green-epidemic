@@ -378,86 +378,111 @@ const MapComponent = ({ activeLayers, userLocation, weatherData: propWeatherData
       )}
 
       {/* Weather Layer */}
-      {activeLayers.weather && weatherData.map((data) => (
-        <CircleMarker
-          key={`weather-${data.id}`}
-          center={[data.latitude, data.longitude]}
-          radius={15}
-          fillColor="#4A90E2"
-          fillOpacity={0.6}
-          stroke={false}
-        >
-          <Popup>
-            <div className="p-2">
-              <h4 className="font-bold">Weather Data</h4>
-              <p>Temperature: {data.temperature}°C</p>
-              <p>Humidity: {data.humidity}%</p>
-              <p className="text-xs mt-2">Updated: {new Date(data.recordedAt).toLocaleString()}</p>
-            </div>
-          </Popup>
-        </CircleMarker>
-      ))}
+      {activeLayers.weather ? (
+        weatherData.map((data) => (
+          <CircleMarker
+            key={`weather-${data.id}`}
+            center={[data.latitude, data.longitude]}
+            radius={15}
+            fillColor="#4A90E2"
+            fillOpacity={0.6}
+            stroke={false}
+          >
+            <Popup>
+              <div className="p-2">
+                <h4 className="font-bold">Weather Data</h4>
+                <p>Temperature: {data.temperature}°C</p>
+                <p>Humidity: {data.humidity}%</p>
+                <p className="text-xs mt-2">Updated: {new Date(data.recordedAt).toLocaleString()}</p>
+              </div>
+            </Popup>
+          </CircleMarker>
+        ))
+      ) : null}
 
-      {/* PM2.5 Layer - Temporarily disabled for build - TODO: Fix TypeScript issue */}
+      {/* PM2.5 Layer */}
+      {activeLayers.pm25 ? (
+        weatherData
+          .filter((data) => data.pm25 !== null)
+          .map((data) => (
+            <CircleMarker
+              key={`pm25-${data.id}`}
+              center={[data.latitude, data.longitude]}
+              radius={20}
+              fillColor={getPM25Color(data.pm25 ?? undefined)}
+              fillOpacity={0.5}
+              color={getPM25Color(data.pm25 ?? undefined)}
+              weight={2}
+            >
+              <Tooltip permanent>
+                <span className="font-bold">PM2.5: {data.pm25}</span>
+              </Tooltip>
+              <Popup>
+                <div className="p-2">
+                  <h4 className="font-bold">Air Quality</h4>
+                  <p>PM2.5: {data.pm25} µg/m³</p>
+                  <p>AQI: {data.aqi}</p>
+                  <p className="text-xs mt-2">Updated: {new Date(data.recordedAt).toLocaleString()}</p>
+                </div>
+              </Popup>
+            </CircleMarker>
+          ))
+      ) : null}
 
       {/* COVID-19 Reports */}
-      {activeLayers.covid19 && (
-        <>
-          {reports
-            .filter(r => r.type === 'COVID19')
-            .map((report) => (
-              <CircleMarker
-                key={`covid-${report.id}`}
-                center={[report.latitude, report.longitude]}
-                radius={10 + report.severity * 2}
-                fillColor="#ff0000"
-                fillOpacity={0.6}
-                color="#cc0000"
-                weight={2}
-              >
-                <Popup>
-                  <div className="p-2">
-                    <h4 className="font-bold text-red-600">COVID-19 Report</h4>
-                    <p>{report.title}</p>
-                    <p>Severity: {report.severity}/5</p>
-                    <p className="text-xs mt-2">Reported: {new Date(report.reportDate).toLocaleDateString()}</p>
-                  </div>
-                </Popup>
-              </CircleMarker>
-            ))}
-        </>
-      )}
+      {activeLayers.covid19 ? (
+        reports
+          .filter(r => r.type === 'COVID19')
+          .map((report) => (
+            <CircleMarker
+              key={`covid-${report.id}`}
+              center={[report.latitude, report.longitude]}
+              radius={10 + report.severity * 2}
+              fillColor="#ff0000"
+              fillOpacity={0.6}
+              color="#cc0000"
+              weight={2}
+            >
+              <Popup>
+                <div className="p-2">
+                  <h4 className="font-bold text-red-600">COVID-19 Report</h4>
+                  <p>{report.title}</p>
+                  <p>Severity: {report.severity}/5</p>
+                  <p className="text-xs mt-2">Reported: {new Date(report.reportDate).toLocaleDateString()}</p>
+                </div>
+              </Popup>
+            </CircleMarker>
+          ))
+      ) : null}
 
       {/* Flu Reports */}
-      {activeLayers.flu && (
-        <>
-          {reports
-            .filter(r => r.type === 'FLU')
-            .map((report) => (
-              <CircleMarker
-                key={`flu-${report.id}`}
-                center={[report.latitude, report.longitude]}
-                radius={10 + report.severity * 2}
-                fillColor="#ffa500"
-                fillOpacity={0.6}
-                color="#ff8c00"
-                weight={2}
-              >
-                <Popup>
-                  <div className="p-2">
-                    <h4 className="font-bold text-orange-600">Flu Report</h4>
-                    <p>{report.title}</p>
-                    <p>Severity: {report.severity}/5</p>
-                    <p className="text-xs mt-2">Reported: {new Date(report.reportDate).toLocaleDateString()}</p>
-                  </div>
-                </Popup>
-              </CircleMarker>
-            ))}
-        </>
-      )}
+      {activeLayers.flu ? (
+        reports
+          .filter(r => r.type === 'FLU')
+          .map((report) => (
+            <CircleMarker
+              key={`flu-${report.id}`}
+              center={[report.latitude, report.longitude]}
+              radius={10 + report.severity * 2}
+              fillColor="#ffa500"
+              fillOpacity={0.6}
+              color="#ff8c00"
+              weight={2}
+            >
+              <Popup>
+                <div className="p-2">
+                  <h4 className="font-bold text-orange-600">Flu Report</h4>
+                  <p>{report.title}</p>
+                  <p>Severity: {report.severity}/5</p>
+                  <p className="text-xs mt-2">Reported: {new Date(report.reportDate).toLocaleDateString()}</p>
+                </div>
+              </Popup>
+            </CircleMarker>
+          ))
+      ) : null}
 
       {/* All Environmental Data Points */}
-      {activeLayers.allEnvironmentalData && allEnvironmentalData.map((data) => {
+      {activeLayers.allEnvironmentalData ? allEnvironmentalData.map((data) => {
         // Determine marker type and color based on data available
         const hasWeather = data.temperature !== null || data.humidity !== null || data.windSpeed !== null;
         const hasAirQuality = data.pm25 !== null || data.pm10 !== null || data.aqi !== null;
@@ -596,11 +621,10 @@ const MapComponent = ({ activeLayers, userLocation, weatherData: propWeatherData
             </Tooltip>
           </CircleMarker>
         );
-      })}
+      }) : null}
 
       {/* Hotspot/Fire Data */}
-      {activeLayers.hotspots && hotspots.length > 0 && console.log(`🔥 Rendering ${hotspots.length} hotspots on map`)}
-      {activeLayers.hotspots && hotspots.map((hotspot) => {
+      {activeLayers.hotspots ? hotspots.map((hotspot) => {
         const color = getHotspotColor(hotspot.confidence, hotspot.frp);
         const radius = hotspot.frp ? Math.max(10, Math.min(30, hotspot.frp / 3)) : 12; // Made even larger for visibility
         
@@ -691,7 +715,7 @@ const MapComponent = ({ activeLayers, userLocation, weatherData: propWeatherData
             </Tooltip>
           </CircleMarker>
         );
-      })}
+      }) : null}
     </MapContainer>
   );
 };

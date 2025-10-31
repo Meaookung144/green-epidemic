@@ -1,8 +1,10 @@
 {
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
   "crons": [
     {
       "path": "/api/cron/weather",
-      "schedule": "0 * * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }
