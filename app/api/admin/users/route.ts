@@ -20,13 +20,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const role = searchParams.get('role');
+
+    const whereClause: any = {};
+    if (role && role !== 'all') {
+      whereClause.role = role;
+    }
+
     const users = await prisma.user.findMany({
+      where: whereClause,
       select: {
         id: true,
         email: true,
         name: true,
         role: true,
         createdAt: true,
+        homeLatitude: true,
+        homeLongitude: true,
+        lineOfficialConnected: true,
+        googleSyncEnabled: true,
         _count: {
           select: {
             reports: true,
@@ -39,7 +52,7 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(users);
+    return NextResponse.json({ users });
   } catch (error) {
     console.error('Admin users API error:', error);
     return NextResponse.json(

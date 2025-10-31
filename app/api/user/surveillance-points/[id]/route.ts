@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -15,10 +15,11 @@ export async function PATCH(
 
     const body = await request.json();
     const { name, latitude, longitude, address, radius, active } = body;
+    const { id } = await params;
 
     // Verify the surveillance point belongs to the user
     const existingPoint = await prisma.surveillancePoint.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { userId: true },
     });
 
@@ -27,7 +28,7 @@ export async function PATCH(
     }
 
     const point = await prisma.surveillancePoint.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         name: name || undefined,
         latitude: latitude || undefined,
@@ -50,7 +51,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -59,9 +60,11 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
+
     // Verify the surveillance point belongs to the user
     const existingPoint = await prisma.surveillancePoint.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { userId: true },
     });
 
@@ -70,7 +73,7 @@ export async function DELETE(
     }
 
     await prisma.surveillancePoint.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ success: true });

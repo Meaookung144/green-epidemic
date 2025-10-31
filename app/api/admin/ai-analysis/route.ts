@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     } else {
       // Get analysis history
       const analyses = await aiAnalysisService.getAnalysisHistory(limit);
-      return NextResponse.json(analyses);
+      return NextResponse.json({ analyses });
     }
 
   } catch (error) {

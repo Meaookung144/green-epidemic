@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans_Thai } from "next/font/google";
 import { Providers } from "@/components/Providers";
+import AppLayout from "@/components/AppLayout";
 import "./globals.css";
 
 const ibmPlexSansThai = IBM_Plex_Sans_Thai({ 
@@ -22,7 +23,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={ibmPlexSansThai.className}>
-        <Providers>{children}</Providers>
+        <Providers>
+          <AppLayout>{children}</AppLayout>
+        </Providers>
       </body>
     </html>
   );

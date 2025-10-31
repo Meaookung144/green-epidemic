@@ -20,7 +20,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get('status');
+
+    const whereClause: any = {};
+    if (status && status !== 'all') {
+      whereClause.status = status;
+    }
+
     const reports = await prisma.report.findMany({
+      where: whereClause,
       include: {
         user: {
           select: {
@@ -35,7 +44,7 @@ export async function GET(request: NextRequest) {
       ],
     });
 
-    return NextResponse.json(reports);
+    return NextResponse.json({ reports });
   } catch (error) {
     console.error('Admin reports API error:', error);
     return NextResponse.json(

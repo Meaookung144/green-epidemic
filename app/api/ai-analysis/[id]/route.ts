@@ -5,7 +5,7 @@ import { aiAnalysisService } from '@/lib/services/aiAnalysisService';
 // GET /api/ai-analysis/[id] - Get detailed analysis by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -17,7 +17,8 @@ export async function GET(
       );
     }
 
-    const analysis = await aiAnalysisService.getAnalysisById(params.id);
+    const { id } = await params;
+    const analysis = await aiAnalysisService.getAnalysisById(id);
     
     if (!analysis) {
       return NextResponse.json(

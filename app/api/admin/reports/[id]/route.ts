@@ -5,7 +5,7 @@ import { notificationService } from '@/lib/services/notificationService';
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -25,11 +25,24 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { action, adminId } = body;
+    const { action, adminId, status } = body;
+    const { id } = await params;
 
     const updateData: any = {};
     
-    if (action === 'approve') {
+    // Handle direct status updates
+    if (status) {
+      updateData.status = status;
+      if (status === 'APPROVED') {
+        updateData.approvedBy = adminId || (session.user as any).id;
+        updateData.approvedAt = new Date();
+      } else if (status === 'REJECTED') {
+        updateData.rejectedBy = adminId || (session.user as any).id;
+        updateData.rejectedAt = new Date();
+      }
+    }
+    // Handle legacy action-based updates
+    else if (action === 'approve') {
       updateData.status = 'APPROVED';
       updateData.approvedBy = adminId;
       updateData.approvedAt = new Date();
@@ -40,12 +53,12 @@ export async function PATCH(
     }
 
     const report = await prisma.report.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
     });
 
     // If approved, trigger notifications for nearby users
-    if (action === 'approve') {
+    if (status === 'APPROVED' || action === 'approve') {
       try {
         await notificationService.notifyNearbyUsersOfReport(report.id);
         console.log(`Notifications sent for approved report ${report.id}`);

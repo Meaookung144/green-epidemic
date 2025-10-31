@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const chatSessions = await prisma.AIHealthChat.findMany({
+    const chatSessions = await prisma.aIHealthChat.findMany({
       where: whereClause,
       include: {
         user: {
@@ -75,12 +75,12 @@ export async function GET(request: NextRequest) {
       take: limit
     });
 
-    const totalCount = await prisma.AIHealthChat.count({
+    const totalCount = await prisma.aIHealthChat.count({
       where: whereClause
     });
 
     // Get summary statistics
-    const riskLevelStats = await prisma.AIHealthChat.groupBy({
+    const riskLevelStats = await prisma.aIHealthChat.groupBy({
       by: ['riskLevel'],
       _count: {
         id: true
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    const consultDoctorStats = await prisma.AIHealthChat.groupBy({
+    const consultDoctorStats = await prisma.aIHealthChat.groupBy({
       by: ['shouldConsultDoctor'],
       _count: {
         id: true
@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Get recent high-risk cases
-    const highRiskCases = await prisma.AIHealthChat.findMany({
+    const highRiskCases = await prisma.aIHealthChat.findMany({
       where: {
         OR: [
           { riskLevel: 'HIGH' },

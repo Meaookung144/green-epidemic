@@ -577,13 +577,13 @@ export default function RiskAssessmentPage() {
                     <p><strong>Consultation Date:</strong> {selectedAssessment.consultationDate ? new Date(selectedAssessment.consultationDate).toLocaleString() : 'N/A'}</p>
                     {selectedAssessment.doctorNotes && (
                       <div className="mt-2">
-                        <p><strong>Doctor's Notes:</strong></p>
+                        <p><strong>Doctor&apos;s Notes:</strong></p>
                         <p className="mt-1">{selectedAssessment.doctorNotes}</p>
                       </div>
                     )}
                     {selectedAssessment.doctorRecommendation && (
                       <div className="mt-2">
-                        <p><strong>Doctor's Recommendation:</strong></p>
+                        <p><strong>Doctor&apos;s Recommendation:</strong></p>
                         <p className="mt-1">{selectedAssessment.doctorRecommendation}</p>
                       </div>
                     )}
@@ -625,7 +625,7 @@ export default function RiskAssessmentPage() {
             }} className="p-6">
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Doctor's Notes</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Doctor&apos;s Notes</label>
                   <textarea
                     value={telemedicalForm.doctorNotes}
                     onChange={(e) => setTelemedicalForm(prev => ({ ...prev, doctorNotes: e.target.value }))}
@@ -636,7 +636,7 @@ export default function RiskAssessmentPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Doctor's Recommendation</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Doctor&apos;s Recommendation</label>
                   <textarea
                     value={telemedicalForm.doctorRecommendation}
                     onChange={(e) => setTelemedicalForm(prev => ({ ...prev, doctorRecommendation: e.target.value }))}

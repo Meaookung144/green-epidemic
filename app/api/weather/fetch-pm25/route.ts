@@ -190,7 +190,7 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 async function fetchAir4ThaiData(latitude: number, longitude: number) {
   try {
     const response = await axios.get<Air4ThaiResponse>(
-      'http://air4thai.com/forweb/getAQI_JSON.php',
+      'https://air4thai.com/forweb/getAQI_JSON.php',
       { timeout: 10000 }
     );
 

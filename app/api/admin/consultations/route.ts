@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Get doctor names for stats
-    const doctorIds = doctorStats.map(d => d.doctorId).filter(Boolean);
+    const doctorIds = doctorStats.map(d => d.doctorId).filter((id): id is string => id !== null);
     const doctors = await prisma.user.findMany({
       where: {
         id: { in: doctorIds }

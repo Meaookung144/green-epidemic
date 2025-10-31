@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { NotificationChannel } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
   try {
@@ -140,7 +141,7 @@ async function checkAndNotifyNearbyUsers(report: any) {
           notificationsToCreate.push({
             userId: point.user.id,
             reportId: report.id,
-            channel: 'LINE',
+            channel: NotificationChannel.LINE,
             title: `Health Alert Near ${point.name}`,
             message: `A ${report.type} case has been reported within ${Math.round(distance)} meters of your surveillance point "${point.name}". Title: ${report.title}`,
             data: {
@@ -183,7 +184,7 @@ async function checkAndNotifyNearbyUsers(report: any) {
             notificationsToCreate.push({
               userId: user.id,
               reportId: report.id,
-              channel: 'LINE',
+              channel: NotificationChannel.LINE,
               title: 'Health Alert Near Home',
               message: `A ${report.type} case has been reported within ${Math.round(distance)} meters of your home location. Title: ${report.title}`,
               data: {

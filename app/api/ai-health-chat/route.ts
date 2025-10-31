@@ -24,13 +24,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate AI response
-    const aiResponse = await generateHealthResponse(message);
+    const aiResponse = await generateHealthResponse(message, session.user.id);
     
     // Create or update chat session
-    const chatSession = await prisma.AIHealthChat.upsert({
+    const chatSession = await prisma.aIHealthChat.upsert({
       where: {
         userId_sessionId: {
-          userId: (session.user as any).id,
+          userId: session.user.id,
           sessionId: sessionId || generateSessionId()
         }
       },
@@ -102,9 +102,9 @@ export async function GET(request: NextRequest) {
 
     if (sessionId) {
       // Get specific session
-      const chatSession = await prisma.AIHealthChat.findFirst({
+      const chatSession = await prisma.aIHealthChat.findFirst({
         where: {
-          userId: (session.user as any).id,
+          userId: session.user.id,
           sessionId: sessionId
         }
       });
@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ chatSession });
     } else {
       // Get all sessions for user
-      const chatSessions = await prisma.AIHealthChat.findMany({
+      const chatSessions = await prisma.aIHealthChat.findMany({
         where: {
           userId: (session.user as any).id
         },
@@ -134,11 +134,21 @@ export async function GET(request: NextRequest) {
   }
 }
 
-async function generateHealthResponse(message: string) {
+async function generateHealthResponse(message: string, userId: string) {
   try {
+    // Get user context and environmental data
+    const userContext = await getUserHealthContext(userId);
+    const environmentalContext = await getCurrentEnvironmentalContext(userContext.userLocation);
+    
     const prompt = `คุณเป็นผู้ช่วยด้านสุขภาพที่ฉลาดและเป็นมิตร โปรดวิเคราะห์อาการที่ผู้ป่วยอธิบาย และให้คำแนะนำเบื้องต้น
 
 ข้อความจากผู้ป่วย: "${message}"
+
+ข้อมูลบริบทของผู้ป่วย:
+${userContext.summary}
+
+สภาพแวดล้อมปัจจุบันในพื้นที่:
+${environmentalContext}
 
 ก่อนให้คำแนะนำ หากผู้ป่วยยังไม่ได้ระบุโรคประจำตัวหรือประวัติการเจ็บป่วย กรุณาถามข้อมูลเพิ่มเติมเหล่านี้:
 1. โรคประจำตัวที่มีอยู่ (เช่น เบาหวาน, ความดันสูง, โรคหัวใจ, โรคไต, โรคแพ้, เป็นต้น)
@@ -147,20 +157,23 @@ async function generateHealthResponse(message: string) {
 4. ระยะเวลาที่มีอาการ
 5. ความรุนแรงของอาการ (1-10)
 
+**สำคัญ**: พิจารณาสภาพแวดล้อมปัจจุบันในการให้คำแนะนำ หากมีค่าฝุ่น PM2.5 สูง ให้เน้นความเสี่ยงต่อระบบทางเดินหายใจ หากอุณหภูมิสูง ให้เตือนเรื่องภาวะขาดน้ำ
+
 โปรดตอบกลับในรูปแบบ JSON ที่มีโครงสร้างดังนี้:
 {
-  "response": "การตอบกลับที่เป็นมิตรและให้ข้อมูลในภาษาไทย รวมถึงคำถามเพิ่มเติมเกี่ยวกับโรคประจำตัวหากจำเป็น",
+  "response": "การตอบกลับที่เป็นมิตรและให้ข้อมูลในภาษาไทย รวมถึงคำแนะนำเกี่ยวกับสภาพแวดล้อมและคำถามเพิ่มเติมเกี่ยวกับโรคประจำตัวหากจำเป็น",
   "symptoms": ["อาการที่ 1", "อาการที่ 2"],
   "riskLevel": "LOW|MEDIUM|HIGH|CRITICAL",
   "recommendation": "SELF_CARE|TELEHEALTH|CLINIC_VISIT|EMERGENCY",
   "shouldConsultDoctor": true/false,
   "needsMoreInfo": true/false,
-  "missingInfo": ["โรคประจำตัว", "ยาที่กิน", "ประวัติการแพ้", "ระยะเวลาอาการ", "ความรุนแรง"]
+  "missingInfo": ["โรคประจำตัว", "ยาที่กิน", "ประวัติการแพ้", "ระยะเวลาอาการ", "ความรุนแรง"],
+  "environmentalFactors": ["ปัจจัยสิ่งแวดล้อมที่เกี่ยวข้อง"]
 }
 
 หลักเกณฑ์การประเมิน:
 - LOW: อาการเล็กน้อย ดูแลตนเองได้
-- MEDIUM: อาการปานกลาง ควรสังเกต
+- MEDIUM: อาการปานกลาง ควรสังเกต  
 - HIGH: อาการค่อนข้างรุนแรง ควรพบแพทย์
 - CRITICAL: อาการรุนแรง ต้องรีบพบแพทย์
 
@@ -235,7 +248,8 @@ async function generateHealthResponse(message: string) {
         ? parsedResponse.recommendation : 'TELEHEALTH',
       shouldConsultDoctor: Boolean(parsedResponse.shouldConsultDoctor),
       needsMoreInfo: Boolean(parsedResponse.needsMoreInfo),
-      missingInfo: Array.isArray(parsedResponse.missingInfo) ? parsedResponse.missingInfo : []
+      missingInfo: Array.isArray(parsedResponse.missingInfo) ? parsedResponse.missingInfo : [],
+      environmentalFactors: Array.isArray(parsedResponse.environmentalFactors) ? parsedResponse.environmentalFactors : []
     };
 
   } catch (error) {
@@ -249,7 +263,8 @@ async function generateHealthResponse(message: string) {
       recommendation: 'TELEHEALTH',
       shouldConsultDoctor: true,
       needsMoreInfo: true,
-      missingInfo: ['โรคประจำตัว', 'ประวัติการเจ็บป่วย']
+      missingInfo: ['โรคประจำตัว', 'ประวัติการเจ็บป่วย'],
+      environmentalFactors: []
     };
   }
 }
@@ -271,6 +286,199 @@ function extractSymptomsFromText(text: string): string[] {
   });
 
   return symptoms;
+}
+
+async function getUserHealthContext(userId: string) {
+  try {
+    // Get user's basic info and location
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        homeLatitude: true,
+        homeLongitude: true,
+        homeAddress: true,
+        createdAt: true,
+      }
+    });
+
+    // Get user's recent health reports (last 30 days)
+    const recentReports = await prisma.report.findMany({
+      where: {
+        userId: userId,
+        reportDate: {
+          gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        }
+      },
+      select: {
+        type: true,
+        severity: true,
+        symptoms: true,
+        reportDate: true,
+      },
+      orderBy: {
+        reportDate: 'desc'
+      },
+      take: 10
+    });
+
+    // Get user's recent AI health chats
+    const recentChats = await prisma.aIHealthChat.findMany({
+      where: {
+        userId: userId,
+        createdAt: {
+          gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        }
+      },
+      select: {
+        riskLevel: true,
+        suggestedSymptoms: true,
+        shouldConsultDoctor: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: 'desc'
+      },
+      take: 5
+    });
+
+    // Get user's risk assessments
+    const riskAssessments = await prisma.riskAssessment.findMany({
+      where: {
+        userId: userId,
+        createdAt: {
+          gte: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000)
+        }
+      },
+      select: {
+        riskLevel: true,
+        primarySymptoms: true,
+        severity: true,
+        patientAge: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: 'desc'
+      },
+      take: 3
+    });
+
+    // Build context summary
+    const userLocation = user?.homeLatitude && user?.homeLongitude 
+      ? { lat: user.homeLatitude, lng: user.homeLongitude }
+      : null;
+
+    const recentSymptoms = new Set();
+    recentReports.forEach(report => {
+      report.symptoms.forEach(symptom => recentSymptoms.add(symptom));
+    });
+
+    const summary = `
+ข้อมูลผู้ใช้:
+- สมาชิกตั้งแต่: ${user?.createdAt.toLocaleDateString('th-TH')}
+- ที่อยู่: ${user?.homeAddress || 'ไม่ระบุ'}
+
+ประวัติสุขภาพล่าสุด (30 วัน):
+- รายงานสุขภาพ: ${recentReports.length} รายงาน
+- อาการที่เคยมี: ${Array.from(recentSymptoms).join(', ') || 'ไม่มีข้อมูล'}
+- การปรึกษา AI: ${recentChats.length} ครั้ง
+- การประเมินความเสี่ยง: ${riskAssessments.length} ครั้ง
+
+${recentReports.length > 0 ? `รายงานล่าสุด:
+${recentReports.slice(0, 3).map(r => 
+  `- ${r.reportDate.toLocaleDateString('th-TH')}: ${r.type} (ความรุนแรง ${r.severity}/5)`
+).join('\n')}` : ''}`;
+
+    return {
+      userLocation,
+      recentReports,
+      recentChats,
+      riskAssessments,
+      summary
+    };
+  } catch (error) {
+    console.error('Error getting user health context:', error);
+    return {
+      userLocation: null,
+      recentReports: [],
+      recentChats: [],
+      riskAssessments: [],
+      summary: 'ไม่สามารถโหลดข้อมูลประวัติสุขภาพได้'
+    };
+  }
+}
+
+async function getCurrentEnvironmentalContext(userLocation: { lat: number, lng: number } | null) {
+  try {
+    if (!userLocation) {
+      return 'ไม่มีข้อมูลที่อยู่สำหรับการวิเคราะห์สภาพแวดล้อม';
+    }
+
+    // Get nearby weather data (within ~5km radius)
+    const nearbyWeather = await prisma.weatherData.findMany({
+      where: {
+        recordedAt: {
+          gte: new Date(Date.now() - 6 * 60 * 60 * 1000) // Last 6 hours
+        },
+        latitude: {
+          gte: userLocation.lat - 0.05,
+          lte: userLocation.lat + 0.05
+        },
+        longitude: {
+          gte: userLocation.lng - 0.05,
+          lte: userLocation.lng + 0.05
+        }
+      },
+      orderBy: {
+        recordedAt: 'desc'
+      },
+      take: 5
+    });
+
+    if (nearbyWeather.length === 0) {
+      return 'ไม่มีข้อมูลสภาพแวดล้อมในพื้นที่ใกล้เคียง';
+    }
+
+    const latestReading = nearbyWeather[0];
+    const pm25 = latestReading.pm25;
+    const aqi = latestReading.aqi;
+    const temp = latestReading.temperature;
+    const humidity = latestReading.humidity;
+
+    let airQualityLevel = 'ปานกลาง';
+    let healthRisk = 'ปกติ';
+
+    if (pm25) {
+      if (pm25 > 75) {
+        airQualityLevel = 'อันตราย';
+        healthRisk = 'สูงมาก - หลีกเลี่ยงกิจกรรมกลางแจ้ง';
+      } else if (pm25 > 55) {
+        airQualityLevel = 'ไม่เหมาะสำหรับสุขภาพ';
+        healthRisk = 'สูง - ลดกิจกรรมกลางแจ้ง';
+      } else if (pm25 > 35) {
+        airQualityLevel = 'ปานกลาง';
+        healthRisk = 'ปานกลาง - กลุ่มเสี่ยงควรระวัง';
+      } else {
+        airQualityLevel = 'ดี';
+        healthRisk = 'ต่ำ';
+      }
+    }
+
+    return `
+สภาพแวดล้อมปัจจุบันในพื้นที่ (อัปเดตล่าสุด: ${latestReading.recordedAt.toLocaleString('th-TH')}):
+- ค่าฝุ่น PM2.5: ${pm25?.toFixed(1) || 'ไม่มีข้อมูล'} μg/m³ (ระดับ: ${airQualityLevel})
+- คุณภาพอากาศ AQI: ${aqi || 'ไม่มีข้อมูล'}
+- อุณหภูมิ: ${temp?.toFixed(1) || 'ไม่มีข้อมูล'}°C
+- ความชื้น: ${humidity?.toFixed(0) || 'ไม่มีข้อมูล'}%
+- ความเสี่ยงต่อสุขภาพ: ${healthRisk}
+- สถานี: ${latestReading.stationName || 'ไม่ระบุ'}
+
+${pm25 && pm25 > 55 ? '⚠️ คำเตือน: ค่าฝุ่นสูง อาจส่งผลต่อระบบทางเดินหายใจ' : ''}
+${temp && temp > 35 ? '🌡️ คำเตือน: อุณหภูมิสูง ควรดื่มน้ำเพิ่มและหลีกเลี่ยงแสงแดด' : ''}`;
+
+  } catch (error) {
+    console.error('Error getting environmental context:', error);
+    return 'เกิดข้อผิดพลาดในการโหลดข้อมูลสภาพแวดล้อม';
+  }
 }
 
 function generateSessionId(): string {

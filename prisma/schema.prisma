@@ -410,3 +410,88 @@ model AIHealthChat {
   @@index([shouldConsultDoctor])
   @@index([needsMoreInfo])
 }
+
+model BulkHealthStatistic {
+  id                String   @id @default(cuid())
+  
+  // Location information
+  province          String
+  district          String?
+  subdistrict       String?
+  postcode          String?
+  latitude          Float?
+  longitude         Float?
+  
+  // Health statistics
+  diseaseType       String   // Type of disease/illness
+  caseCount         Int      // Number of sick people
+  populationCount   Int?     // Total population in area (optional)
+  severity          String?  // LOW, MEDIUM, HIGH, CRITICAL
+  ageGroup          String?  // e.g., "0-10", "11-20", "21-30", etc.
+  gender            String?  // MALE, FEMALE, ALL
+  
+  // Time period
+  reportDate        DateTime // Date this statistic represents
+  periodType        String   @default("DAILY") // DAILY, WEEKLY, MONTHLY
+  
+  // Source information
+  sourceType        String   // MANUAL, CSV_IMPORT, API_IMPORT
+  sourceReference   String?  // Reference to source document/file
+  reportedBy        String   // Admin user ID who added this data
+  
+  // Metadata
+  notes             String?  // Additional notes
+  verified          Boolean  @default(false) // Whether data has been verified
+  verifiedBy        String?  // Admin who verified the data
+  verifiedAt        DateTime?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([province])
+  @@index([district])
+  @@index([postcode])
+  @@index([diseaseType])
+  @@index([reportDate])
+  @@index([severity])
+  @@index([reportedBy])
+}
+
+model Hotspot {
+  id            String   @id @default(cuid())
+  
+  // Location data
+  latitude      Float
+  longitude     Float
+  
+  // NASA FIRMS data
+  brightness    Float?   // Brightness temperature (Kelvin)
+  scan          Float?   // Along scan pixel size
+  track         Float?   // Along track pixel size
+  acquisitionDate DateTime // Date/time of satellite pass
+  acquisitionTime String // Time of satellite pass (HHMM format)
+  satellite     String   // Satellite name (e.g., "Terra", "Aqua", "SUOMI_NPP")
+  instrument    String   // Instrument name (e.g., "MODIS", "VIIRS")
+  confidence    Int?     // Detection confidence (0-100)
+  version       String?  // Collection version
+  brightT31     Float?   // Brightness temperature band 31
+  frp           Float?   // Fire Radiative Power (MW)
+  daynight      String?  // D=day, N=night
+  
+  // Additional fields
+  type          String?  // Fire type classification if available
+  source        String   @default("NASA_FIRMS") // Data source
+  
+  // Metadata
+  isActive      Boolean  @default(true) // Whether this hotspot is still active
+  lastSeen      DateTime? // Last time this hotspot was detected
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([latitude, longitude])
+  @@index([acquisitionDate])
+  @@index([satellite])
+  @@index([confidence])
+  @@index([isActive])
+}

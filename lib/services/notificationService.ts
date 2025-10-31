@@ -135,35 +135,41 @@ export class NotificationService {
 
     const users = await prisma.user.findMany({
       where: {
-        OR: [
-          // Users with home location in the area
+        AND: [
           {
-            AND: [
-              { homeLatitude: { gte: latitude - radiusDegrees } },
-              { homeLatitude: { lte: latitude + radiusDegrees } },
-              { homeLongitude: { gte: longitude - radiusDegrees } },
-              { homeLongitude: { lte: longitude + radiusDegrees } },
+            OR: [
+              // Users with home location in the area
+              {
+                AND: [
+                  { homeLatitude: { gte: latitude - radiusDegrees } },
+                  { homeLatitude: { lte: latitude + radiusDegrees } },
+                  { homeLongitude: { gte: longitude - radiusDegrees } },
+                  { homeLongitude: { lte: longitude + radiusDegrees } },
+                ]
+              },
+              // Users with surveillance points in the area
+              {
+                surveillancePoints: {
+                  some: {
+                    AND: [
+                      { latitude: { gte: latitude - radiusDegrees } },
+                      { latitude: { lte: latitude + radiusDegrees } },
+                      { longitude: { gte: longitude - radiusDegrees } },
+                      { longitude: { lte: longitude + radiusDegrees } },
+                      { active: true }
+                    ]
+                  }
+                }
+              }
             ]
           },
-          // Users with surveillance points in the area
+          // Only users with connected services
           {
-            surveillancePoints: {
-              some: {
-                AND: [
-                  { latitude: { gte: latitude - radiusDegrees } },
-                  { latitude: { lte: latitude + radiusDegrees } },
-                  { longitude: { gte: longitude - radiusDegrees } },
-                  { longitude: { lte: longitude + radiusDegrees } },
-                  { active: true }
-                ]
-              }
-            }
+            OR: [
+              { lineOfficialConnected: true },
+              { googleSyncEnabled: true }
+            ]
           }
-        ],
-        // Only users with connected services
-        OR: [
-          { lineOfficialConnected: true },
-          { googleSyncEnabled: true }
         ]
       },
       select: {

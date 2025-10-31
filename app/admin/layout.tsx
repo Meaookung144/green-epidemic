@@ -1,47 +1,59 @@
-import { auth } from "@/auth";
-import { redirect } from "next/navigation";
+'use client'
 
-export default async function AdminLayout({
+import { AppSidebar } from "@/components/admin/app-sidebar"
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar"
+import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
+import { useEffect } from "react"
+
+export default function AdminLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
-  const session = await auth();
-  
-  // Check if user is authenticated and is admin
-  if (!session?.user) {
-    redirect("/auth/signin");
-  }
+  const { data: session, status } = useSession()
+  const router = useRouter()
 
-  // Check if user is admin (you'll need to add this check)
-  const userRole = (session.user as any).role;
-  if (userRole !== "ADMIN") {
-    redirect("/");
+  useEffect(() => {
+    if (status === 'loading') return
+    
+    const userRole = (session?.user as any)?.role
+    if (!session || (userRole !== 'ADMIN' && userRole !== 'VOLUNTEER')) {
+      router.push('/')
+    }
+  }, [session, status, router])
+
+  if (status === 'loading') {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-green-700 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-bold">Green Epidemic - Admin Panel</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm">Welcome, {session.user.name}</span>
-              <a
-                href="/"
-                className="text-sm bg-green-600 hover:bg-green-500 px-3 py-1 rounded"
-              >
-                Back to Map
-              </a>
-            </div>
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+          <SidebarTrigger className="-ml-1" />
+          <div className="flex items-center gap-2 ml-auto">
+            <span className="text-sm text-gray-600">
+              {session?.user?.name || session?.user?.email}
+            </span>
+            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+              {(session?.user as any)?.role}
+            </span>
           </div>
-        </div>
-      </nav>
-      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        {children}
-      </div>
-    </div>
-  );
+        </header>
+        <main className="flex-1 p-4 bg-gray-50 min-h-screen">
+          {children}
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
+  )
 }

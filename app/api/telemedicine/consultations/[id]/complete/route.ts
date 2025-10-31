@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 // POST /api/telemedicine/consultations/[id]/complete - Complete consultation
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -19,7 +19,7 @@ export async function POST(
 
     const userRole = (session.user as any).role;
     const userId = (session.user as any).id;
-    const consultationId = params.id;
+    const { id: consultationId } = await params;
 
     const { doctorNotes, diagnosis, prescription, followUpNotes, followUpDate } = await request.json();
 

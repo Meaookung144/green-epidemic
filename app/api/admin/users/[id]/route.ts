@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -25,9 +25,10 @@ export async function PATCH(
 
     const body = await request.json();
     const { role } = body;
+    const { id } = await params;
 
     // Prevent user from changing their own role
-    if (params.id === (session.user as any).id) {
+    if (id === (session.user as any).id) {
       return NextResponse.json(
         { error: 'Cannot change your own role' },
         { status: 400 }
@@ -35,7 +36,7 @@ export async function PATCH(
     }
 
     const user = await prisma.user.update({
-      where: { id: params.id },
+      where: { id },
       data: { role },
     });
 

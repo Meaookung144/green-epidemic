@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useSession } from "next-auth/react";
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
+import { DatePicker } from '@/components/ui/date-picker';
+import { TimePicker } from '@/components/ui/time-picker';
 
 interface TelemedConsultation {
   id: string;
@@ -62,7 +64,7 @@ export default function TelemedicinePage() {
   // Booking form state
   const [bookingForm, setBookingForm] = useState({
     chiefComplaint: '',
-    scheduledDate: '',
+    scheduledDate: new Date(),
     scheduledTime: '',
     selectedDoctorId: ''
   });
@@ -185,7 +187,9 @@ export default function TelemedicinePage() {
     }
 
     try {
-      const scheduledAt = new Date(`${bookingForm.scheduledDate}T${bookingForm.scheduledTime}`);
+      // Format date to YYYY-MM-DD for combination with time
+      const dateStr = bookingForm.scheduledDate.toISOString().split('T')[0];
+      const scheduledAt = new Date(`${dateStr}T${bookingForm.scheduledTime}`);
       
       const response = await fetch('/api/telemedicine/consultations', {
         method: 'POST',
@@ -205,7 +209,7 @@ export default function TelemedicinePage() {
         setShowBookingModal(false);
         setBookingForm({
           chiefComplaint: '',
-          scheduledDate: '',
+          scheduledDate: new Date(),
           scheduledTime: '',
           selectedDoctorId: ''
         });
@@ -225,6 +229,15 @@ export default function TelemedicinePage() {
       window.open(consultation.callUrl, '_blank');
     } else {
       toast.error('Video call not yet available');
+    }
+  };
+
+  const joinMeetingRoom = (consultation: TelemedConsultation) => {
+    if (consultation.roomId && consultation.callUrl) {
+      // Navigate to our internal meeting room page
+      router.push(consultation.callUrl);
+    } else {
+      toast.error('Meeting room not yet available');
     }
   };
 
@@ -248,6 +261,39 @@ export default function TelemedicinePage() {
     } catch (error) {
       console.error('Error starting consultation:', error);
       toast.error('Error starting consultation');
+    }
+  };
+
+  const startInstantCall = async () => {
+    try {
+      // Create an instant consultation
+      const now = new Date();
+      const response = await fetch('/api/telemedicine/consultations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          chiefComplaint: 'Instant consultation request',
+          scheduledAt: now.toISOString(),
+          doctorId: null // Any available doctor
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success('เชื่อมต่อกับแพทย์แล้ว');
+        
+        // Immediately start the consultation
+        await startConsultation(data.consultation.id);
+        fetchConsultations();
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || 'ไม่สามารถเชื่อมต่อกับแพทย์ได้');
+      }
+    } catch (error) {
+      console.error('Error starting instant call:', error);
+      toast.error('เกิดข้อผิดพลาดในการเชื่อมต่อ');
     }
   };
 
@@ -293,12 +339,20 @@ export default function TelemedicinePage() {
               </p>
             </div>
             {isPatient && (
-              <button
-                onClick={() => setShowBookingModal(true)}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
-              >
-                📞 จองการปรึกษา
-              </button>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={() => startInstantCall()}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+                >
+                  📞 เริ่มการโทรทันที
+                </button>
+                <button
+                  onClick={() => setShowBookingModal(true)}
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+                >
+                  📅 จองการปรึกษา
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -397,12 +451,12 @@ export default function TelemedicinePage() {
                     <div className="mt-4 sm:mt-0 sm:ml-6 flex flex-col sm:flex-row gap-2">
                       {consultation.status === 'SCHEDULED' && (
                         <>
-                          {consultation.callUrl && (
+                          {consultation.roomId && consultation.callUrl && (
                             <button
-                              onClick={() => joinVideoCall(consultation)}
+                              onClick={() => joinMeetingRoom(consultation)}
                               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm"
                             >
-                              🎥 Join Call
+                              🏥 Enter Meeting Room
                             </button>
                           )}
                           {isDoctor && (
@@ -416,12 +470,12 @@ export default function TelemedicinePage() {
                         </>
                       )}
                       
-                      {consultation.status === 'IN_PROGRESS' && consultation.callUrl && (
+                      {consultation.status === 'IN_PROGRESS' && consultation.roomId && consultation.callUrl && (
                         <button
-                          onClick={() => joinVideoCall(consultation)}
+                          onClick={() => joinMeetingRoom(consultation)}
                           className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm animate-pulse"
                         >
-                          🎥 Join Active Call
+                          🏥 Join Active Meeting
                         </button>
                       )}
                       
@@ -577,25 +631,23 @@ export default function TelemedicinePage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Preferred Date *
                   </label>
-                  <input
-                    type="date"
-                    value={bookingForm.scheduledDate}
-                    onChange={(e) => setBookingForm(prev => ({ ...prev, scheduledDate: e.target.value }))}
-                    min={new Date().toISOString().split('T')[0]}
-                    className="w-full border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
-                    required
+                  <DatePicker
+                    date={bookingForm.scheduledDate}
+                    onDateChange={(date) => setBookingForm(prev => ({ ...prev, scheduledDate: date || new Date() }))}
+                    placeholder="Select consultation date"
+                    className="w-full"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Preferred Time *
                   </label>
-                  <input
-                    type="time"
-                    value={bookingForm.scheduledTime}
-                    onChange={(e) => setBookingForm(prev => ({ ...prev, scheduledTime: e.target.value }))}
-                    className="w-full border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
-                    required
+                  <TimePicker
+                    time={bookingForm.scheduledTime}
+                    onTimeChange={(time) => setBookingForm(prev => ({ ...prev, scheduledTime: time || '' }))}
+                    placeholder="Select consultation time"
+                    className="w-full"
+                    autoSetCurrent={true}
                   />
                 </div>
               </div>
@@ -682,7 +734,7 @@ export default function TelemedicinePage() {
               
               {selectedConsultation.doctorNotes && (
                 <div>
-                  <span className="text-sm font-medium text-gray-700">Doctor's Notes:</span>
+                  <span className="text-sm font-medium text-gray-700">Doctor&apos;s Notes:</span>
                   <p className="mt-1 text-sm text-gray-900">{selectedConsultation.doctorNotes}</p>
                 </div>
               )}

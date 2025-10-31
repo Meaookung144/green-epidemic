@@ -3,7 +3,7 @@ import Google from "next-auth/providers/google"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from "@/lib/prisma"
 
-// LINE provider definition (manual implementation since it's not built-in)
+// LINE provider definition for NextAuth v5
 function LINE(options: any) {
   return {
     id: "line",
@@ -14,7 +14,7 @@ function LINE(options: any) {
       params: {
         scope: "profile openid",
         response_type: "code",
-      },
+      }
     },
     token: "https://api.line.me/oauth2/v2.1/token",
     userinfo: "https://api.line.me/v2/profile",
@@ -24,16 +24,24 @@ function LINE(options: any) {
       return {
         id: profile.userId,
         name: profile.displayName,
-        email: null, // LINE doesn't provide email in basic profile
+        email: null,
         image: profile.pictureUrl,
       }
+    },
+    style: {
+      logo: "https://static.line-scdn.net/line_login_btn/assets/line_logo.png",
+      logoDark: "https://static.line-scdn.net/line_login_btn/assets/line_logo.png",
+      bg: "#00C300",
+      text: "#fff",
+      bgDark: "#00C300",
+      textDark: "#fff",
     },
     ...options,
   }
 }
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  adapter: PrismaAdapter(prisma),
+  adapter: PrismaAdapter(prisma) as any,
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -54,20 +62,43 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    async session({ session, token, user }) {
-      if (session?.user && user?.id) {
-        session.user.id = user.id;
-        // Add user role and other data
-        const dbUser = await prisma.user.findUnique({
-          where: { id: user.id },
-          select: { role: true, homeLatitude: true, homeLongitude: true, lineId: true }
-        });
-        if (dbUser) {
-          (session.user as any).role = dbUser.role;
-          (session.user as any).homeLatitude = dbUser.homeLatitude;
-          (session.user as any).homeLongitude = dbUser.homeLongitude;
-          (session.user as any).lineId = dbUser.lineId;
+    async jwt({ token, user, account }) {
+      // Initial sign in
+      if (user && account) {
+        token.id = user.id;
+        
+        // Fetch user role and store it in the token for immediate access
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: user.id },
+            select: { role: true }
+          });
+          token.role = dbUser?.role || 'USER';
+          console.log('JWT: Setting role for user', user.id, 'to', token.role);
+        } catch (error) {
+          console.error('Error fetching user role for JWT:', error);
+          token.role = 'USER';
         }
+        
+        if (account.provider === "google" && user.email) {
+          token.email = user.email;
+          token.name = user.name;
+          token.picture = user.image;
+        } else if (account.provider === "line") {
+          token.lineId = account.providerAccountId;
+          token.name = user.name;
+          token.picture = user.image;
+        }
+      }
+      
+      return token;
+    },
+    async session({ session, token }) {
+      if (token) {
+        session.user.id = token.id as string;
+        (session.user as any).lineId = token.lineId;
+        (session.user as any).role = token.role;
+        console.log('Session: User', session.user.id, 'has role:', token.role);
       }
       return session;
     },
@@ -85,7 +116,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         try {
           // Check if user already exists
           const existingUser = await prisma.user.findUnique({
-            where: { email: user.email }
+            where: { email: user.email! }
           });
 
           if (existingUser) {
@@ -161,7 +192,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     error: '/auth/error',
   },
   session: {
-    strategy: "database",
+    strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   debug: process.env.NODE_ENV === "development",

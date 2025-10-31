@@ -6,7 +6,9 @@ import { useRouter } from "next/navigation";
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import IntegrationsSection from '@/components/IntegrationsSection';
+import { DatePicker } from '@/components/ui/date-picker';
 
 const LocationPicker = dynamic(() => import('@/components/LocationPicker'), {
   ssr: false,
@@ -91,8 +93,8 @@ export default function Dashboard() {
     source: '',
     hasWeather: false,
     hasAirQuality: false,
-    startDate: '',
-    endDate: ''
+    startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
+    endDate: new Date() // today
   });
   const [userProfile, setUserProfile] = useState({
     homeLatitude: 0,
@@ -295,20 +297,20 @@ export default function Dashboard() {
 
       if (response.ok) {
         if (data.generated) {
-          toast.success('AI analysis generated successfully');
+          toast.success(t('toast.ai_analysis_generated'));
           await fetchUserData(); // Refresh the analyses list
         } else if (data.cooldown) {
-          toast.success('Using recent analysis');
+          toast.success(t('toast.using_recent_analysis'));
           if (data.analysis) {
             setSelectedAnalysis(data.analysis);
           }
         }
       } else {
-        toast.error(data.error || 'Failed to generate analysis');
+        toast.error(data.error || t('toast.failed_to_generate_analysis'));
       }
     } catch (error) {
       console.error('Error generating analysis:', error);
-      toast.error('Error generating analysis');
+      toast.error(t('toast.error_generating_analysis'));
     } finally {
       setGeneratingAnalysis(false);
     }
@@ -321,11 +323,11 @@ export default function Dashboard() {
         const analysis = await response.json();
         setSelectedAnalysis(analysis);
       } else {
-        toast.error('Failed to load analysis details');
+        toast.error(t('toast.failed_to_load_analysis'));
       }
     } catch (error) {
       console.error('Error fetching analysis details:', error);
-      toast.error('Error loading analysis');
+      toast.error(t('toast.error_loading_analysis'));
     }
   };
 
@@ -350,8 +352,8 @@ export default function Dashboard() {
       if (dataFilter.source) params.append('source', dataFilter.source);
       if (dataFilter.hasWeather) params.append('hasWeather', 'true');
       if (dataFilter.hasAirQuality) params.append('hasAirQuality', 'true');
-      if (dataFilter.startDate) params.append('startDate', dataFilter.startDate);
-      if (dataFilter.endDate) params.append('endDate', dataFilter.endDate);
+      if (dataFilter.startDate) params.append('startDate', dataFilter.startDate.toISOString().split('T')[0]);
+      if (dataFilter.endDate) params.append('endDate', dataFilter.endDate.toISOString().split('T')[0]);
 
       const response = await fetch(`/api/data/environmental?${params}`);
       if (response.ok) {
@@ -359,11 +361,11 @@ export default function Dashboard() {
         setEnvironmentalData(data.data);
         setEnvironmentalStats(data.statistics);
       } else {
-        toast.error('Failed to load environmental data');
+        toast.error(t('toast.failed_to_load_environmental_data'));
       }
     } catch (error) {
       console.error('Error fetching environmental data:', error);
-      toast.error('Error loading environmental data');
+      toast.error(t('toast.error_loading_environmental_data'));
     } finally {
       setEnvironmentalLoading(false);
     }
@@ -405,12 +407,12 @@ export default function Dashboard() {
             </div>
             <div className="flex items-center space-x-2 md:space-x-4">
               <span className="text-xs md:text-sm hidden sm:block">{t('nav.welcome')}, {session?.user?.name}</span>
-              <a
+              <Link
                 href="/"
                 className="text-xs md:text-sm bg-green-600 hover:bg-green-500 px-2 md:px-3 py-1 rounded transition"
               >
                 {t('dashboard.back_to_map')}
-              </a>
+              </Link>
             </div>
           </div>
         </div>
@@ -582,7 +584,7 @@ export default function Dashboard() {
         <div className="mt-4 md:mt-6 bg-white shadow rounded-lg">
           <div className="px-4 md:px-6 py-4 border-b border-gray-200">
             <div className="flex justify-between items-center">
-              <h2 className="text-lg font-medium text-gray-900">🤖 AI Environmental Analysis</h2>
+              <h2 className="text-lg font-medium text-gray-900">🤖 {t('dashboard.ai_environmental_analysis')}</h2>
               <button
                 onClick={handleGenerateAnalysis}
                 disabled={generatingAnalysis}
@@ -591,10 +593,10 @@ export default function Dashboard() {
                 {generatingAnalysis ? (
                   <>
                     <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Generating...
+                    {t('dashboard.generating')}
                   </>
                 ) : (
-                  'Generate New Analysis'
+                  t('dashboard.generate_new_analysis')
                 )}
               </button>
             </div>
@@ -603,8 +605,8 @@ export default function Dashboard() {
             {aiAnalyses.length === 0 ? (
               <div className="text-center py-8">
                 <div className="text-gray-400 text-4xl mb-4">🔍</div>
-                <p className="text-gray-500 mb-4">No AI analyses available yet</p>
-                <p className="text-sm text-gray-400">Generate your first environmental health analysis based on current data</p>
+                <p className="text-gray-500 mb-4">{t('dashboard.no_ai_analyses')}</p>
+                <p className="text-sm text-gray-400">{t('dashboard.generate_first_analysis')}</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -624,7 +626,7 @@ export default function Dashboard() {
                     </div>
                     <div className="flex items-center justify-between mt-2">
                       <div className="flex items-center">
-                        <span className="text-xs text-gray-500 mr-2">Confidence:</span>
+                        <span className="text-xs text-gray-500 mr-2">{t('dashboard.confidence')}:</span>
                         <div className="w-16 bg-gray-200 rounded-full h-2">
                           <div 
                             className="bg-blue-600 h-2 rounded-full" 
@@ -633,7 +635,7 @@ export default function Dashboard() {
                         </div>
                         <span className="text-xs text-gray-500 ml-2">{Math.round(analysis.confidence * 100)}%</span>
                       </div>
-                      <span className="text-xs text-blue-600 hover:text-blue-800">View Details →</span>
+                      <span className="text-xs text-blue-600 hover:text-blue-800">{t('dashboard.view_details')} →</span>
                     </div>
                   </div>
                 ))}
@@ -646,7 +648,7 @@ export default function Dashboard() {
         <div className="mt-4 md:mt-6 bg-white shadow rounded-lg">
           <div className="px-4 md:px-6 py-4 border-b border-gray-200">
             <div className="flex justify-between items-center">
-              <h2 className="text-lg font-medium text-gray-900">🌍 Environmental Data Points</h2>
+              <h2 className="text-lg font-medium text-gray-900">🌍 {t('dashboard.environmental_data_points')}</h2>
               <button
                 onClick={() => {
                   setShowEnvironmentalData(!showEnvironmentalData);
@@ -656,7 +658,7 @@ export default function Dashboard() {
                 }}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm"
               >
-                {showEnvironmentalData ? 'Hide Data' : 'Show All Data'}
+                {showEnvironmentalData ? t('dashboard.hide_data') : t('dashboard.show_all_data')}
               </button>
             </div>
           </div>
@@ -665,10 +667,10 @@ export default function Dashboard() {
             <div className="p-4 md:p-6">
               {/* Filters */}
               <div className="mb-6 bg-gray-50 p-4 rounded-lg">
-                <h3 className="text-sm font-medium text-gray-900 mb-3">Filter Data</h3>
+                <h3 className="text-sm font-medium text-gray-900 mb-3">{t('dashboard.filter_data')}</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Source</label>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">{t('dashboard.source')}</label>
                     <input
                       type="text"
                       value={dataFilter.source}
@@ -678,21 +680,23 @@ export default function Dashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
-                    <input
-                      type="date"
-                      value={dataFilter.startDate}
-                      onChange={(e) => setDataFilter({...dataFilter, startDate: e.target.value})}
-                      className="w-full text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    <label className="block text-xs font-medium text-gray-700 mb-1">{t('dashboard.start_date')}</label>
+                    <DatePicker
+                      date={dataFilter.startDate}
+                      onDateChange={(date) => setDataFilter({...dataFilter, startDate: date || new Date()})}
+                      placeholder={t('dashboard.select_start_date')}
+                      className="w-full text-sm"
+                      allowPastDates={true}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">End Date</label>
-                    <input
-                      type="date"
-                      value={dataFilter.endDate}
-                      onChange={(e) => setDataFilter({...dataFilter, endDate: e.target.value})}
-                      className="w-full text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    <label className="block text-xs font-medium text-gray-700 mb-1">{t('dashboard.end_date')}</label>
+                    <DatePicker
+                      date={dataFilter.endDate}
+                      onDateChange={(date) => setDataFilter({...dataFilter, endDate: date || new Date()})}
+                      placeholder={t('dashboard.select_end_date')}
+                      className="w-full text-sm"
+                      allowPastDates={true}
                     />
                   </div>
                   <div className="flex items-end">
@@ -701,7 +705,7 @@ export default function Dashboard() {
                       disabled={environmentalLoading}
                       className="w-full bg-green-600 text-white px-3 py-2 rounded-md hover:bg-green-700 disabled:opacity-50 transition text-sm"
                     >
-                      {environmentalLoading ? 'Loading...' : 'Apply Filters'}
+                      {environmentalLoading ? t('dashboard.loading') : t('dashboard.apply_filters')}
                     </button>
                   </div>
                 </div>
@@ -713,7 +717,7 @@ export default function Dashboard() {
                       onChange={(e) => setDataFilter({...dataFilter, hasWeather: e.target.checked})}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
-                    <span className="ml-2 text-xs text-gray-700">Has Weather Data</span>
+                    <span className="ml-2 text-xs text-gray-700">{t('dashboard.has_weather_data')}</span>
                   </label>
                   <label className="flex items-center">
                     <input
@@ -722,7 +726,7 @@ export default function Dashboard() {
                       onChange={(e) => setDataFilter({...dataFilter, hasAirQuality: e.target.checked})}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
-                    <span className="ml-2 text-xs text-gray-700">Has Air Quality Data</span>
+                    <span className="ml-2 text-xs text-gray-700">{t('dashboard.has_air_quality_data')}</span>
                   </label>
                 </div>
               </div>
@@ -731,36 +735,36 @@ export default function Dashboard() {
               {environmentalStats && (
                 <div className="mb-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
                   <div className="bg-blue-50 p-3 rounded-lg">
-                    <div className="text-xs text-blue-600 font-medium">Total Points</div>
+                    <div className="text-xs text-blue-600 font-medium">{t('dashboard.total_points')}</div>
                     <div className="text-lg font-semibold text-blue-900">{environmentalStats.total}</div>
                   </div>
                   {environmentalStats.averages.temperature && (
                     <div className="bg-orange-50 p-3 rounded-lg">
-                      <div className="text-xs text-orange-600 font-medium">Avg Temp</div>
+                      <div className="text-xs text-orange-600 font-medium">{t('dashboard.avg_temp')}</div>
                       <div className="text-lg font-semibold text-orange-900">{environmentalStats.averages.temperature}°C</div>
                     </div>
                   )}
                   {environmentalStats.averages.humidity && (
                     <div className="bg-cyan-50 p-3 rounded-lg">
-                      <div className="text-xs text-cyan-600 font-medium">Avg Humidity</div>
+                      <div className="text-xs text-cyan-600 font-medium">{t('dashboard.avg_humidity')}</div>
                       <div className="text-lg font-semibold text-cyan-900">{environmentalStats.averages.humidity}%</div>
                     </div>
                   )}
                   {environmentalStats.averages.pm25 && (
                     <div className="bg-red-50 p-3 rounded-lg">
-                      <div className="text-xs text-red-600 font-medium">Avg PM2.5</div>
+                      <div className="text-xs text-red-600 font-medium">{t('dashboard.avg_pm25')}</div>
                       <div className="text-lg font-semibold text-red-900">{environmentalStats.averages.pm25} μg/m³</div>
                     </div>
                   )}
                   {environmentalStats.averages.aqi && (
                     <div className="bg-purple-50 p-3 rounded-lg">
-                      <div className="text-xs text-purple-600 font-medium">Avg AQI</div>
+                      <div className="text-xs text-purple-600 font-medium">{t('dashboard.avg_aqi')}</div>
                       <div className="text-lg font-semibold text-purple-900">{environmentalStats.averages.aqi}</div>
                     </div>
                   )}
                   {environmentalStats.averages.windSpeed && (
                     <div className="bg-green-50 p-3 rounded-lg">
-                      <div className="text-xs text-green-600 font-medium">Avg Wind</div>
+                      <div className="text-xs text-green-600 font-medium">{t('dashboard.avg_wind')}</div>
                       <div className="text-lg font-semibold text-green-900">{environmentalStats.averages.windSpeed} m/s</div>
                     </div>
                   )}
@@ -775,19 +779,19 @@ export default function Dashboard() {
               ) : environmentalData.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="text-gray-400 text-4xl mb-4">📊</div>
-                  <p className="text-gray-500 mb-4">No environmental data found</p>
-                  <p className="text-sm text-gray-400">Try adjusting your filters or check data sources</p>
+                  <p className="text-gray-500 mb-4">{t('dashboard.no_environmental_data')}</p>
+                  <p className="text-sm text-gray-400">{t('dashboard.try_adjusting_filters')}</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Weather</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Air Quality</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Source</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Recorded</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('dashboard.location')}</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('dashboard.weather')}</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('dashboard.air_quality')}</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('dashboard.source')}</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('dashboard.recorded')}</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -911,7 +915,7 @@ export default function Dashboard() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-gray-900">AI Environmental Analysis</h2>
+              <h2 className="text-xl font-semibold text-gray-900">{t('dashboard.ai_environmental_analysis')}</h2>
               <button
                 onClick={() => setSelectedAnalysis(null)}
                 className="text-gray-400 hover:text-gray-600 text-2xl"
@@ -932,7 +936,7 @@ export default function Dashboard() {
                   <span>📋 {selectedAnalysis.reportsCount} reports</span>
                   <span>📅 {new Date(selectedAnalysis.createdAt).toLocaleDateString()}</span>
                   <div className="flex items-center">
-                    <span className="mr-2">Confidence: {Math.round(selectedAnalysis.confidence * 100)}%</span>
+                    <span className="mr-2">{t('dashboard.confidence')}: {Math.round(selectedAnalysis.confidence * 100)}%</span>
                     <div className="w-20 bg-gray-200 rounded-full h-2">
                       <div 
                         className="bg-blue-600 h-2 rounded-full" 
@@ -945,13 +949,13 @@ export default function Dashboard() {
 
               <div className="space-y-6">
                 <div>
-                  <h4 className="text-md font-medium text-gray-900 mb-2">📋 Executive Summary</h4>
+                  <h4 className="text-md font-medium text-gray-900 mb-2">📋 {t('dashboard.executive_summary')}</h4>
                   <p className="text-gray-700 bg-gray-50 p-4 rounded-lg">{selectedAnalysis.summary}</p>
                 </div>
 
                 {selectedAnalysis.analysis && (
                   <div>
-                    <h4 className="text-md font-medium text-gray-900 mb-2">🔍 Detailed Analysis</h4>
+                    <h4 className="text-md font-medium text-gray-900 mb-2">🔍 {t('dashboard.detailed_analysis')}</h4>
                     <div className="text-gray-700 bg-gray-50 p-4 rounded-lg whitespace-pre-wrap">
                       {selectedAnalysis.analysis}
                     </div>
@@ -960,7 +964,7 @@ export default function Dashboard() {
 
                 {selectedAnalysis.recommendations && (
                   <div>
-                    <h4 className="text-md font-medium text-gray-900 mb-2">💡 Recommendations</h4>
+                    <h4 className="text-md font-medium text-gray-900 mb-2">💡 {t('dashboard.recommendations')}</h4>
                     <div className="text-gray-700 bg-blue-50 p-4 rounded-lg border-l-4 border-blue-400 whitespace-pre-wrap">
                       {selectedAnalysis.recommendations}
                     </div>
@@ -973,7 +977,7 @@ export default function Dashboard() {
                 onClick={() => setSelectedAnalysis(null)}
                 className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition"
               >
-                Close
+                {t('dashboard.close')}
               </button>
             </div>
           </div>
